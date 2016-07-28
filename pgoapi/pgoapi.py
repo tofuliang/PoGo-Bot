@@ -20,7 +20,7 @@ import random
 import json
 from pgoapi.location import distance_in_meters, get_increments, get_neighbors, get_route, filtered_forts
 # import pgoapi.protos.POGOProtos.Enums_pb2 as RpcEnum
-from pgoapi.poke_utils import pokemon_iv_percentage, get_inventory_data, get_pokemon_num
+from pgoapi.poke_utils import pokemon_iv_percentage, get_inventory_data, get_pokemon_num, get_incubators_stat
 from time import sleep
 from collections import defaultdict
 import os.path
@@ -32,11 +32,11 @@ CANDY_NEEDED_TO_EVOLVE = {10: 11,  # Caterpie
                           16: 11,  # Pidgey
                           13: 11,  # Weedle
                           19: 24,  # Rattata
-                          21: 49,  # Spearow 
+                          21: 49,  # Spearow
                           41: 49,  # Zubat
                           60: 24,  # Poliwag
                           90: 49,  # Shellder
-                          96: 49,  # Drowzee 
+                          96: 49,  # Drowzee
                           }
 
 POKEBALLS = ["Pokeball", "Great Ball", "Ultra Ball", "Master Ball"]  # you only get one master ball dont waste it botting
@@ -202,7 +202,7 @@ class PGoApi:
                 res['responses']['lat'] = self._posf[0]
                 res['responses']['lng'] = self._posf[1]
                 f.write(json.dumps(res['responses'], indent=2))
-            self.log.info("List of Pokemon:\n" + get_inventory_data(res, self.pokemon_names) + "\nTotal Pokemon count: " + str(get_pokemon_num(res)))
+            self.log.info("List of Pokemon:\n" + get_inventory_data(res, self.pokemon_names) + "\nTotal Pokemon count: " + str(get_pokemon_num(res)) + "\nEgg Hatching status:" + get_incubators_stat(res))
             self.log.debug(self.cleanup_inventory(res['responses']['GET_INVENTORY']['inventory_delta']['inventory_items']))
 
         self._heartbeat_number += 1
