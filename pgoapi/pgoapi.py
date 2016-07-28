@@ -11,7 +11,7 @@ from pgoapi.rpc_api import RpcApi
 from pgoapi.auth_ptc import AuthPtc
 from pgoapi.auth_google import AuthGoogle
 from pgoapi.exceptions import AuthException, ServerBusyOrOfflineException
-# from . import protos
+from termcolor import colored
 from pgoapi.protos.POGOProtos.Networking.Requests_pb2 import RequestType
 from pgoapi.protos.POGOProtos import Inventory_pb2 as Inventory
 
@@ -92,7 +92,7 @@ class PGoApi:
         self.MIN_KEEP_IV = config.get("MIN_KEEP_IV", 0)
         self.KEEP_CP_OVER = config.get("KEEP_CP_OVER", 0)
         self.RELEASE_DUPLICATES = config.get("RELEASE_DUPLICATE", 0)
-        self.DUPLICATE_CP_FORGIVENESS = config.get("DUPLICATE_CP_FOREGIVENESS", 0)
+        self.DUPLICATE_CP_FORGIVENESS = config.get("DUPLICATE_CP_FORGIVENESS", 0)
         self.MAX_BALL_TYPE = config.get("MAX_BALL_TYPE", 0)
         self._req_method_list = []
         self._heartbeat_number = 5
@@ -202,7 +202,7 @@ class PGoApi:
                 res['responses']['lat'] = self._posf[0]
                 res['responses']['lng'] = self._posf[1]
                 f.write(json.dumps(res['responses'], indent=2))
-            self.log.info("List of Pokemon:\n" + get_inventory_data(res, self.pokemon_names) + "\nTotal Pokemon count: " + str(get_pokemon_num(res)) + "\nEgg Hatching status:" + get_incubators_stat(res))
+            self.log.info("List of Pokemon:\n" + get_inventory_data(res, self.pokemon_names) + "\nTotal Pokemon count: " + str(get_pokemon_num(res)) + "\nEgg Hatching status: " + get_incubators_stat(res))
             self.log.debug(self.cleanup_inventory(res['responses']['GET_INVENTORY']['inventory_delta']['inventory_items']))
 
         self._heartbeat_number += 1
@@ -325,7 +325,7 @@ class PGoApi:
             if len(pokemons) > MIN_SIMILAR_POKEMON:  # if you have more then same amount of pokemon do this
                 pokemons = sorted(pokemons, lambda x, y: cmp(x['cp'], y['cp']), reverse=True)
                 for pokemon in pokemons[MIN_SIMILAR_POKEMON:]:
-                    if 'cp' in pokemon and pokemon_iv_percentage(pokemon) < self.MIN_KEEP_IV: # FIXME
+                    if 'cp' in pokemon and pokemon_iv_percentage(pokemon) < self.MIN_KEEP_IV and pokemon["cp"] < self.KEEP_CP_OVER:  # Keep only if the pokemon is over the IV and CP set up
                         if pokemon['pokemon_id'] in CANDY_NEEDED_TO_EVOLVE:
                             for inventory_item in inventory_items:
                                 if "pokemon_family" in inventory_item['inventory_item_data'] and inventory_item['inventory_item_data']['pokemon_family']['family_id'] == pokemon['pokemon_id'] and inventory_item['inventory_item_data']['pokemon_family']['candy'] > CANDY_NEEDED_TO_EVOLVE[pokemon['pokemon_id']]:
@@ -342,9 +342,9 @@ class PGoApi:
                     last_pokemon = pokemons[0]
                     for pokemon in pokemons[MIN_SIMILAR_POKEMON:]:
                         if self.pokemon_names[str(pokemon['pokemon_id'])] == self.pokemon_names[str(last_pokemon['pokemon_id'])]:
-                            # two of the same pokemon, compare and release smaller of the two
-                            if pokemon['cp'] > last_pokemon['cp']:
-                                if pokemon['cp'] * self.DUPLICATE_CP_FORGIVENESS > last_pokemon['cp']:
+                            # Compare two pokemon if the larger IV pokemon has less then DUPLICATE_CP_FORGIVENESS times CP keep it
+                            if pokemon_iv_percentage(pokemon) > pokemon_iv_percentage(pokemon):
+                                if pokemon['cp'] * self.DUPLICATE_CP_FORGIVENESS < last_pokemon['cp']:
                                     # release the lesser!
                                     self.log.debug("Releasing pokemon: %s", last_pokemon)
                                     self.log.info("Releasing pokemon: %s IV: %s", self.pokemon_names[str(last_pokemon['pokemon_id'])], pokemon_iv_percentage(last_pokemon))
