@@ -218,7 +218,7 @@ class PGoApi:
                 self.set_position(*next_point)
                 self.heartbeat()
                 self.log.info("Sleeping before next heartbeat")
-                sleep(2)  # If you want to make it faster, delete this line... would not recommend though
+                sleep(self.RANDOM_SLEEP_TIME*random.random()+2)  # If you want to make it faster, delete this line... would not recommend though
                 # make sure we have atleast 1 ball
                 if sum(self.pokeballs) > 0:
                     while self.catch_near_pokemon():
