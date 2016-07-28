@@ -26,11 +26,19 @@ def get_inventory_data(res, poke_names):
         inventory_items_pokemon_list,
         key=lambda pokemon: pokemon['pokemon_data']['cp']
     )
-    return (os.linesep.join(map(lambda x: "{0}, CP {1}, IV {2:.2f}".format(
-        poke_names[str(x['pokemon_data']['pokemon_id'])].encode('ascii', 'ignore'),
-        x['pokemon_data']['cp'],
-        pokemon_iv_percentage(x['pokemon_data'])), inventory_items_pokemon_list_sorted)))
+	
+    rs = "\n"
+    i = 0
 
+    for x in inventory_items_pokemon_list_sorted:
+        r = "{0} CP:{1} IV:{2:.2f}".format(poke_names[str(x['pokemon_data']['pokemon_id'])].encode('ascii', 'ignore'), x['pokemon_data']['cp'], pokemon_iv_percentage(x['pokemon_data']))
+        i += 1
+        if i % 3 == 0:
+            rs += "{0: <35}\n".format(r)
+        else:
+            rs += "{0: <35}".format(r)
+
+    return rs
 
 def get_incubators_stat(res):
     inventory_delta = res['responses']['GET_INVENTORY'].get('inventory_delta', {})
@@ -38,6 +46,5 @@ def get_incubators_stat(res):
     inventory_items_incubators = map(lambda x: x.get('inventory_item_data', {}), inventory_items)
     inventory_items_dict_list = map(lambda x: x.get('egg_incubators', {}), inventory_items_incubators)
     inventory_items_incubator_list = filter(lambda x: 'egg_incubator' in x, inventory_items_dict_list)
-    return (os.linesep.join(map(lambda x: "Incubator {0:.2f} km, walked {1:.2f} km".format(
-        x['egg_incubator']['target_km_walked'],
-        x['egg_incubator']['start_km_walked']), inventory_items_incubator_list)))
+    return (os.linesep.join(map(lambda x: "Incubator {0:.2f} km, walked {1:.2f} km".format(x['egg_incubator']['target_km_walked'],x['egg_incubator']['start_km_walked']), inventory_items_incubator_list)))
+
