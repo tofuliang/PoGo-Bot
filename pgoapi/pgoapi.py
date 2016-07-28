@@ -29,10 +29,14 @@ logger = logging.getLogger(__name__)
 
 # Candy needed to evolve pokemon  to add new pokemon to auto evolve list edit them here
 CANDY_NEEDED_TO_EVOLVE = {10: 11,  # Caterpie
-                          16: 11,  # pidgey
+                          16: 11,  # Pidgey
                           13: 11,  # Weedle
                           19: 24,  # Rattata
+                          21: 49,  # Spearow 
                           41: 49,  # Zubat
+                          60: 24,  # Poliwag
+                          90: 49,  # Shellder
+                          96: 49,  # Drowzee 
                           }
 
 POKEBALLS = ["Pokeball", "Great Ball", "Ultra Ball", "Master Ball"]  # you only get one master ball dont waste it botting
@@ -314,7 +318,7 @@ class PGoApi:
                 item = inventory_item['inventory_item_data']['item']
                 if item['item_id'] in self.min_item_counts and "count" in item and item['count'] > self.min_item_counts[item['item_id']]:
                     recycle_count = item['count'] - self.min_item_counts[item['item_id']]
-                    self.log.info("Recycling Item_ID {0}, item count {1}".format(item['item_id'], recycle_count))
+                    self.log.info("Recycling {0}, item count {1}".format(INVENTORY_DICT[item['item_id']], recycle_count))
                     self.recycle_inventory_item(item_id=item['item_id'], count=recycle_count)
 
         for pokemons in caught_pokemon.values():
