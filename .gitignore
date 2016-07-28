@@ -99,3 +99,6 @@ accounts
 
 .DS_Store
 data_dumps/*.json
+
+.idea
+*.iml
