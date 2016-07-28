@@ -75,7 +75,7 @@ def main():
     if not config:
         return
 
-    if config.debug:
+    if config.verbose:
         logging.getLogger("requests").setLevel(logging.DEBUG)
         logging.getLogger("pgoapi").setLevel(logging.DEBUG)  # FIXME we need to work on what should be show normally and what should be shown durin debug
         logging.getLogger("rpc_api").setLevel(logging.DEBUG)
