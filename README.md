@@ -1,6 +1,6 @@
 PoGoWoBo
 ========
-[![Build Status](https://travis-ci.org/BoBeR182/PoGoBoWo.svg?branch=master)](https://travis-ci.org/BoBeR182/PoGoBoWo)
+[![Build Status](https://travis-ci.org/BoBeR182/Pokemon-Go-Bot-Working-Hack-API.svg?branch=master)](https://travis-ci.org/BoBeR182/Pokemon-Go-Bot-Working-Hack-API)
 
 Bitcoin: 1HJ5kY14HMTjE3DfTEDr9YkRMxCS5PHPta
 
