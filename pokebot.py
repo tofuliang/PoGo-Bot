@@ -1,6 +1,6 @@
-# Credits to Tejado and the devs over at the subreddit /r/PokemonGoDev -TomTheBotter
+# Just a random python bot
 
-# Do NOT use this bot while signed into your phone -TomTheBotter
+# Do NOT use this bot while signed into your phone
 
 # If you want to make the bot as fast as possible for catching more pokemon (like you are driving a fast car--it won't look suspicious though, since it only goes on paths), make stepsize 200; for more info see that method in pgoapi.py under pgoapi...but still I wouldn't recommend making stepsize that high
 
@@ -51,7 +51,7 @@ def init_config():
     parser.add_argument("-u", "--username", help="Username", required=required("username"))
     parser.add_argument("-p", "--password", help="Password", required=required("password"))
     parser.add_argument("-l", "--location", help="Location", required=required("location"))
-    parser.add_argument("-d", "--debug", help="Debug Mode", action='store_true')
+    parser.add_argument("-v", "--verbose", help="Debug Mode", action='store_true')
     parser.add_argument("-c", "--cached", help="cached", action='store_true')
     parser.add_argument("-t", "--test", help="Only parse the specified location", action='store_true')
     parser.set_defaults(DEBUG=False, TEST=False, CACHED=False)
@@ -68,7 +68,7 @@ def init_config():
 def main():
     logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(module)10s] [%(levelname)5s] %(message)s')
     logging.getLogger("requests").setLevel(logging.WARNING)
-    logging.getLogger("pgoapi").setLevel(logging.INFO)
+    logging.getLogger("pgoapi").setLevel(logging.INFO)  # FIXME we need to work on what should be show normally and what should be shown durin debug
     logging.getLogger("rpc_api").setLevel(logging.INFO)
 
     config = init_config()
@@ -76,9 +76,9 @@ def main():
         return
 
     if config.debug:
-        logging.getLogger("requests").setLevel(logging.INFO)
-        logging.getLogger("pgoapi").setLevel(logging.INFO)
-        logging.getLogger("rpc_api").setLevel(logging.INFO)
+        logging.getLogger("requests").setLevel(logging.DEBUG)
+        logging.getLogger("pgoapi").setLevel(logging.DEBUG)  # FIXME we need to work on what should be show normally and what should be shown durin debug
+        logging.getLogger("rpc_api").setLevel(logging.DEBUG)
 
     position = get_pos_by_name(config.location)
     if config.test:

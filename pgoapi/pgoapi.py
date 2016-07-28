@@ -1,5 +1,4 @@
-# Credits to Tejado and the devs over at the subreddit /r/PokemonGoDev -TomTheBotter
-
+# Time to put in proper comments overywher
 from __future__ import absolute_import
 
 import logging
@@ -28,7 +27,7 @@ import os.path
 
 logger = logging.getLogger(__name__)
 
-# Candy needed to evolve pokemon
+# Candy needed to evolve pokemon  to add new pokemon to auto evolve list edit them here
 CANDY_NEEDED_TO_EVOLVE = {10: 11,  # Caterpie
                           16: 11,  # pidgey
                           13: 11,  # Weedle
@@ -36,9 +35,9 @@ CANDY_NEEDED_TO_EVOLVE = {10: 11,  # Caterpie
                           41: 49,  # Zubat
                           }
 
-POKEBALLS = ["Pokeball", "Great Ball", "Ultra Ball", "Master Ball"]
+POKEBALLS = ["Pokeball", "Great Ball", "Ultra Ball", "Master Ball"]  # you only get one master ball dont waste it botting
 
-MIN_SIMILAR_POKEMON = 1
+MIN_SIMILAR_POKEMON = 1  # change this to keep more doubles if you have release duplicates set to ture
 
 INVENTORY_DICT = {Inventory.ITEM_UNKNOWN: "UNKNOWN",
                   Inventory.ITEM_POKE_BALL: "POKE_BALL",
@@ -94,7 +93,7 @@ class PGoApi:
         self._req_method_list = []
         self._heartbeat_number = 5
         self.pokemon_names = pokemon_names
-        self.pokeballs = [0, 0, 0, 0] # pokeball counts. set to 0 to ensure that even if the bot is started with 0 pokeballs it will continue without error
+        self.pokeballs = [0, 0, 0, 0]  # pokeball counts. set to 0 to force atleast one fort check  before trying to capture pokemon
         self.min_item_counts = dict(
             ((getattr(Inventory, key), value) for key, value in config.get('MIN_ITEM_COUNTS', {}).iteritems())
         )
@@ -170,7 +169,7 @@ class PGoApi:
 
     def heartbeat(self):
         self.get_player()
-        if self._heartbeat_number % 10 == 0:
+        if self._heartbeat_number % 10 == 0:  # every 10 heartbeats do a inventory check
             self.check_awarded_badges()
             self.get_inventory()
         res = self.call()
@@ -192,7 +191,7 @@ class PGoApi:
                 player_stats = {}
             currencies = player_data.get('currencies', [])
             currency_data = ",".join(map(lambda x: "{0}: {1}".format(x.get('name', 'NA'), x.get('amount', 'NA')), currencies))
-            self.log.info("Username: %s, Lvl: %s, XP: %s/%s, Currencies: %s", player_data.get('username', 'NA'), player_stats.get('level', 'NA'), player_stats.get('experience', 'NA'), player_stats.get('next_level_xp', 'NA'), currency_data)
+            self.log.info("Username: %s, Lvl: %s, XP: %s/%s, Currencies: %s", player_data.get('username', 'NA'), player_stats.get('level', 'NA'), player_stats.get('experience', 'NA'), player_stats.get('next_level_xp', 'NA'), currency_data)  # display stats
 
         if 'GET_INVENTORY' in res['responses']:
             with open("accounts/%s.json" % self.config['username'], "w") as f:
@@ -213,12 +212,13 @@ class PGoApi:
                 self.set_position(*next_point)
                 self.heartbeat()
                 self.log.info("Sleeping before next heartbeat")
-                sleep(2) # If you want to make it faster, delete this line... would not recommend though
-                # make sure we always have at least 10 pokeballs, 5 great balls, and 5 ultra balls
+                sleep(2)  # If you want to make it faster, delete this line... would not recommend though
+                # make sure we have atleast 1 ball
                 if sum(self.pokeballs) > 0:
                     while self.catch_near_pokemon():
                         sleep(1) # If you want to make it faster, delete this line... would not recommend though
 
+    # this is in charge of spinning a pokestop
     def spin_near_fort(self):
         map_cells = self.nearby_map_objects().get('responses', {}).get('GET_MAP_OBJECTS', {}).get('map_cells', {})
         forts = PGoApi.flatmap(lambda c: c.get('forts', []), map_cells)
@@ -248,6 +248,7 @@ class PGoApi:
             self.log.error("No fort to walk to!")
             return False
 
+    # this will catch any nearby pokemon
     def catch_near_pokemon(self):
         map_cells = self.nearby_map_objects().get('responses', {}).get('GET_MAP_OBJECTS', {}).get('map_cells', {})
         pokemons = PGoApi.flatmap(lambda c: c.get('catchable_pokemons', []), map_cells)
@@ -280,7 +281,7 @@ class PGoApi:
             encounter_id=encounter_id,
             spawn_point_guid=spawn_point_guid,
         ).call()['responses']['CATCH_POKEMON']
-        self.log.info("Throwing pokeball type: %s", POKEBALLS[ball_type - 1])
+        self.log.info("Throwing pokeball type: %s", POKEBALLS[ball_type - 1]) # list the pokeball that was thrown
         if "status" in r:
             self.log.debug("Status: %d", r['status'])
             return r
@@ -317,10 +318,10 @@ class PGoApi:
                     self.recycle_inventory_item(item_id=item['item_id'], count=recycle_count)
 
         for pokemons in caught_pokemon.values():
-            if len(pokemons) > MIN_SIMILAR_POKEMON:
+            if len(pokemons) > MIN_SIMILAR_POKEMON:  # if you have more then same amount of pokemon do this
                 pokemons = sorted(pokemons, lambda x, y: cmp(x['cp'], y['cp']), reverse=True)
                 for pokemon in pokemons[MIN_SIMILAR_POKEMON:]:
-                    if 'cp' in pokemon and pokemon_iv_percentage(pokemon) < self.MIN_KEEP_IV:
+                    if 'cp' in pokemon and pokemon_iv_percentage(pokemon) < self.MIN_KEEP_IV: # FIXME
                         if pokemon['pokemon_id'] in CANDY_NEEDED_TO_EVOLVE:
                             for inventory_item in inventory_items:
                                 if "pokemon_family" in inventory_item['inventory_item_data'] and inventory_item['inventory_item_data']['pokemon_family']['family_id'] == pokemon['pokemon_id'] and inventory_item['inventory_item_data']['pokemon_family']['candy'] > CANDY_NEEDED_TO_EVOLVE[pokemon['pokemon_id']]:
@@ -404,20 +405,20 @@ class PGoApi:
             player_latitude=position[0],
             player_longitude=position[1]
         ).call()['responses']['ENCOUNTER']
-
+        # this cade catches pokemon
         self.log.debug("Started Encounter: %s", encounter)
         if encounter['status'] == 1:
             capture_status = -1
-            self._pokeball_type = 1
+            self._pokeball_type = 1  # start with a pokeball
             while capture_status != 0 and capture_status != 3:
-                for balls in range(len(self.pokeballs)):
+                for balls in range(len(self.pokeballs)):  # try with each ball type starting with weakest
                     self._pokeball_type = balls
-                    if self.pokeballs[balls] > 0:
-                        catch_attempt = self.attempt_catch(encounter_id, spawn_point_id, self._pokeball_type)
-                        self.pokeballs[self._pokeball_type] -= 1
+                    if self.pokeballs[balls] > 0:  # if you have less then 1 ball do not attempt to catch em all
+                        catch_attempt = self.attempt_catch(encounter_id, spawn_point_id, self._pokeball_type)  # actual catching code
+                        self.pokeballs[self._pokeball_type] -= 1  # lowers the thrown ball code
                         capture_status = catch_attempt['status']
                         if capture_status == 1:
-                            self.log.debug("Caught Pokemon: : %s", catch_attempt)
+                            self.log.debug("Caught Pokemon: : %s", catch_attempt)  # you did it
                             self.log.info("Caught Pokemon:  %s", self.pokemon_names[str(pokemon['pokemon_id'])])
                             self._pokeball_type = 1
                             sleep(2) # If you want to make it faster, delete this line... would not recommend though
@@ -425,9 +426,9 @@ class PGoApi:
                         elif capture_status == 2:
                             self.log.info("Pokemon %s is too wild", self.pokemon_names[str(pokemon['pokemon_id'])])
                             if self._pokeball_type < self.MAX_BALL_TYPE:
-                                self._pokeball_type += 1
+                                self._pokeball_type += 1  # try with a stronger ball
                         elif capture_status == 3:
-                            self.log.debug("Failed Catch: : %s", catch_attempt)
+                            self.log.debug("Failed Catch: : %s", catch_attempt)  # potential soft ban or just a run away
                             self.log.info("Failed to Catch Pokemon:  %s", self.pokemon_names[str(pokemon['pokemon_id'])])
                             self._pokeball_type = 1
                 sleep(2) # If you want to make it faster, delete this line... would not recommend though
@@ -455,7 +456,7 @@ class PGoApi:
         self.get_hatched_eggs()
         self.get_inventory()
         self.check_awarded_badges()
-        self.download_settings(hash="05daf51635c82611d1aac95c0b051d3ec088a930")
+        self.download_settings(hash="05daf51635c82611d1aac95c0b051d3ec088a930")  # not sure what this is but dont change it
 
         response = self.call()
 
@@ -494,12 +495,12 @@ class PGoApi:
         while True:
             self.heartbeat()
             sleep(1) # If you want to make it faster, delete this line... would not recommend though
-            if sum(self.pokeballs) > 0:
+            if sum(self.pokeballs) > 0:  # if you do not have any balls skip pokemon catching
                 while self.catch_near_pokemon():
                     sleep(4) # If you want to make it faster, delete this line... would not recommend though
             else:
                 self.log.info("Less than 1 Poke Balls: Entering pokestops only")
-            self.spin_near_fort()
+            self.spin_near_fort()  # check local pokestop
 
     @staticmethod
     def flatmap(f, items):
