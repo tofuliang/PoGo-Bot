@@ -261,10 +261,10 @@ class PGoApi:
                 res['responses']['lat'] = self._posf[0]
                 res['responses']['lng'] = self._posf[1]
                 f.write(json.dumps(res['responses'], indent=2))
-            self.log.info("\n List of Pokemon:\n" + get_inventory_data(res, self.pokemon_names) + "\nTotal Pokemon count: " + str(get_pokemon_num(res)) + "\nEgg Hatching status: " + get_incubators_stat(res) + "\n")
-            self.log.info("\n Username: %s, Lvl: %s, XP: %s/%s \n Currencies: %s \n", player_data.get('username', 'NA'), player_stats.get('level', 'NA'), player_stats.get('experience', 'NA'), player_stats.get('next_level_xp', 'NA'), currency_data)
+            # create string with pokemon list, add users info and print everything
+            self.log.info("\n\nList of Pokemon:\n" + get_inventory_data(res, self.pokemon_names) + "\nTotal Pokemon count: " + str(get_pokemon_num(res)) + "\nEgg Hatching status: " + get_incubators_stat(res) + "\n")
+            self.log.info("\n\n Username: %s, Lvl: %s, XP: %s/%s \n Currencies: %s \n", player_data.get('username', 'NA'), player_stats.get('level', 'NA'), player_stats.get('experience', 'NA'), player_stats.get('next_level_xp', 'NA'), currency_data)
             self.log.debug(self.cleanup_inventory(res['responses']['GET_INVENTORY']['inventory_delta']['inventory_items']))
-
         self._heartbeat_number += 1
         return res
 
@@ -335,7 +335,7 @@ class PGoApi:
         neighbors = get_neighbors(self._posf)
         return self.get_map_objects(latitude=position[0], longitude=position[1], since_timestamp_ms=[0] * len(neighbors), cell_id=neighbors).call()
 
-    def attempt_catch(self, encounter_id, spawn_point_guid, ball_type):
+    def attempt_catch(self, encounter_id, spawn_point_id, ball_type):
         r = self.catch_pokemon(
             normalized_reticle_size=1.950,
             pokeball=ball_type,
@@ -343,7 +343,7 @@ class PGoApi:
             hit_pokemon=True,
             normalized_hit_position=1,
             encounter_id=encounter_id,
-            spawn_point_guid=spawn_point_guid,
+            spawn_point_id=spawn_point_id,
         ).call()['responses']['CATCH_POKEMON']
         self.log.info("Throwing pokeball type: %s", POKEBALLS[ball_type - 1]) # list the pokeball that was thrown
         if "status" in r:
