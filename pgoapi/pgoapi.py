@@ -343,7 +343,7 @@ class PGoApi:
             hit_pokemon=True,
             normalized_hit_position=1,
             encounter_id=encounter_id,
-            spawn_point_guid=spawn_point_id,
+            spawn_point_id=spawn_point_id,
         ).call()['responses']['CATCH_POKEMON']
         self.log.info("Throwing pokeball type: %s", POKEBALLS[ball_type - 1]) # list the pokeball that was thrown
         if "status" in r:
