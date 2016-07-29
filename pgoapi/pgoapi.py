@@ -234,13 +234,13 @@ class PGoApi:
 
     def heartbeat(self):
         self.get_player()
+        if self._heartbeat_number % 10 == 0 or self._heartbeat_number == 0:  # every 10 heartbeats do a inventory check
+            self.check_awarded_badges()
+            self.get_inventory()
         res = self.call()
         if res.get("direction", -1) == 102:
             self.log.error("There were a problem responses for api call: %s. Restarting!!!", res)
             raise AuthException("Token probably expired?")
-        if self._heartbeat_number % 10 == 0 or self._heartbeat_number == 0:  # every 10 heartbeats do a inventory check
-            self.check_awarded_badges()
-            self.get_inventory()
         self.log.debug('Heartbeat dictionary: \n\r{}'.format(json.dumps(res, indent=2)))
         if 'GET_PLAYER' in res['responses']:
             player_data = res['responses'].get('GET_PLAYER', {}).get('player_data', {})
