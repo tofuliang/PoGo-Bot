@@ -388,13 +388,13 @@ class PGoApi:
                     if 'cp' in pokemon and pokemon_iv_percentage(pokemon) > self.MIN_KEEP_IV and pokemon["cp"] > self.KEEP_CP_OVER:  # Keep only if the pokemon is over the IV and CP set up
                         if pokemon['pokemon_id'] in CANDY_NEEDED_TO_EVOLVE:
                             for inventory_item in inventory_items:
-                                if "pokemon_family" in inventory_item['inventory_item_data'] and (inventory_item['inventory_item_data']['pokemon_family']['family_id'] == pokemon['pokemon_id'] or inventory_item['inventory_item_data']['pokemon_family']['family_id'] == (pokemon['pokemon_id'] + 1)) and inventory_item['inventory_item_data']['pokemon_family']['candy'] > CANDY_NEEDED_TO_EVOLVE[pokemon['pokemon_id']]:
+                                if "pokemon_family" in inventory_item['inventory_item_data'] and (inventory_item['inventory_item_data']['pokemon_family']['family_id'] == pokemon['pokemon_id'] or inventory_item['inventory_item_data']['pokemon_family']['family_id'] == (pokemon['pokemon_id'] - 1)) and inventory_item['inventory_item_data']['pokemon_family']['candy'] > CANDY_NEEDED_TO_EVOLVE[pokemon['pokemon_id']]:
                                     self.log.info("Evolving pokemon: %s", self.pokemon_names[str(pokemon['pokemon_id'])])
                                     self.evolve_pokemon(pokemon_id=pokemon['id'])
                     else:
                         if pokemon['pokemon_id'] in CANDY_NEEDED_TO_EVOLVE:
                             for inventory_item in inventory_items:
-                                if "pokemon_family" in inventory_item['inventory_item_data'] and (inventory_item['inventory_item_data']['pokemon_family']['family_id'] == (pokemon['pokemon_id'] + 1) or inventory_item['inventory_item_data']['pokemon_family']['family_id'] == pokemon['pokemon_id']) and inventory_item['inventory_item_data']['pokemon_family']['candy'] > CANDY_NEEDED_TO_EVOLVE[pokemon['pokemon_id']]:
+                                if "pokemon_family" in inventory_item['inventory_item_data'] and (inventory_item['inventory_item_data']['pokemon_family']['family_id'] == (pokemon['pokemon_id'] - 1) or inventory_item['inventory_item_data']['pokemon_family']['family_id'] == pokemon['pokemon_id']) and inventory_item['inventory_item_data']['pokemon_family']['candy'] > CANDY_NEEDED_TO_EVOLVE[pokemon['pokemon_id']]:
                                     self.log.info("Evolving pokemon: %s", self.pokemon_names[str(pokemon['pokemon_id'])])
                                     self.evolve_pokemon(pokemon_id=pokemon['id'])
                         self.log.debug("Releasing pokemon: %s", pokemon)
