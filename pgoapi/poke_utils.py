@@ -26,7 +26,7 @@ def get_inventory_data(res, poke_names):
         inventory_items_pokemon_list,
         key=lambda pokemon: pokemon['pokemon_data']['cp']
     )
-
+    
     rs = "\n"
     i = 0
 
