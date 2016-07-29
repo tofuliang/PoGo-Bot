@@ -26,17 +26,10 @@ def get_inventory_data(res, poke_names):
         inventory_items_pokemon_list,
         key=lambda pokemon: pokemon['pokemon_data']['cp']
     )
-
-    rs = "\n" # formating to make the pokemon list more readable
-    i = 0
-    for x in inventory_items_pokemon_list_sorted:
-        r = "{0} CP:{1} IV:{2:.2f}".format(poke_names[str(x['pokemon_data']['pokemon_id'])].encode('ascii', 'ignore'), x['pokemon_data']['cp'], pokemon_iv_percentage(x['pokemon_data']))
-        i += 1
-        if i % 3 == 0:
-            rs += "{0: <35}\n".format(r)
-        else:
-            rs += "{0: <35}".format(r)
-    return rs
+    return (os.linesep.join(map(lambda x: "{0}, CP {1}, IV {2:.2f}".format(
+        poke_names[str(x['pokemon_data']['pokemon_id'])].encode('ascii', 'ignore'),
+        x['pokemon_data']['cp'],
+        pokemon_iv_percentage(x['pokemon_data'])), inventory_items_pokemon_list_sorted)))
 
 
 def get_incubators_stat(res):
