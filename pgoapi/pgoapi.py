@@ -370,12 +370,12 @@ class PGoApi:
         caught_pokemon = defaultdict(list)
         for inventory_item in inventory_items:
             if "pokemon_data" in inventory_item['inventory_item_data']:
-                # is a pokemon:
+                # This code block checks to see if the inventory item is an item or pokemon
                 pokemon = inventory_item['inventory_item_data']['pokemon_data']
                 if 'cp' in pokemon and "favorite" not in pokemon:
                     caught_pokemon[pokemon["pokemon_id"]].append(pokemon)
             elif "item" in inventory_item['inventory_item_data']:
-                item = inventory_item['inventory_item_data']['item']
+                item = inventory_item['inventory_item_data']['item']  # Check to see if your holding too many items and recycles them
                 if item['item_id'] in self.min_item_counts and "count" in item and item['count'] > self.min_item_counts[item['item_id']]:
                     recycle_count = item['count'] - self.min_item_counts[item['item_id']]
                     self.log.info("Recycling {0}, item count {1}".format(INVENTORY_DICT[item['item_id']], recycle_count))
@@ -384,22 +384,17 @@ class PGoApi:
         for pokemons in caught_pokemon.values():
             if len(pokemons) > MIN_SIMILAR_POKEMON:  # if you have more than 1 of the same amount of pokemon do this
                 pokemons = sorted(pokemons, lambda x, y: cmp(x['cp'], y['cp']), reverse=True)
+                for pokemon in pokemons:
+                    if pokemon['pokemon_id'] in CANDY_NEEDED_TO_EVOLVE:
+                        for inventory_item in inventory_items:
+                            if "pokemon_family" in inventory_item['inventory_item_data'] and (inventory_item['inventory_item_data']['pokemon_family']['family_id'] == pokemon['pokemon_id'] or inventory_item['inventory_item_data']['pokemon_family']['family_id'] == (pokemon['pokemon_id'] - 1)) and inventory_item['inventory_item_data']['pokemon_family']['candy'] > CANDY_NEEDED_TO_EVOLVE[pokemon['pokemon_id']]:  # Check to see if the pokemon is able to evolve or not, supports t2 evolutions 
+                                self.log.info("Evolving pokemon: %s", self.pokemon_names[str(pokemon['pokemon_id'])])
+                                self.evolve_pokemon(pokemon_id=pokemon['id'])  # quick press ctrl + c to stop the evolution
                 for pokemon in pokemons[MIN_SIMILAR_POKEMON:]:
-                    if 'cp' in pokemon and pokemon_iv_percentage(pokemon) > self.MIN_KEEP_IV and pokemon["cp"] > self.KEEP_CP_OVER:  # Keep only if the pokemon is over the IV and CP set up
-                        if pokemon['pokemon_id'] in CANDY_NEEDED_TO_EVOLVE:
-                            for inventory_item in inventory_items:
-                                if "pokemon_family" in inventory_item['inventory_item_data'] and (inventory_item['inventory_item_data']['pokemon_family']['family_id'] == pokemon['pokemon_id'] or inventory_item['inventory_item_data']['pokemon_family']['family_id'] == (pokemon['pokemon_id'] - 1)) and inventory_item['inventory_item_data']['pokemon_family']['candy'] > CANDY_NEEDED_TO_EVOLVE[pokemon['pokemon_id']]:
-                                    self.log.info("Evolving pokemon: %s", self.pokemon_names[str(pokemon['pokemon_id'])])
-                                    self.evolve_pokemon(pokemon_id=pokemon['id'])
-                    else:
-                        if pokemon['pokemon_id'] in CANDY_NEEDED_TO_EVOLVE:
-                            for inventory_item in inventory_items:
-                                if "pokemon_family" in inventory_item['inventory_item_data'] and (inventory_item['inventory_item_data']['pokemon_family']['family_id'] == (pokemon['pokemon_id'] - 1) or inventory_item['inventory_item_data']['pokemon_family']['family_id'] == pokemon['pokemon_id']) and inventory_item['inventory_item_data']['pokemon_family']['candy'] > CANDY_NEEDED_TO_EVOLVE[pokemon['pokemon_id']]:
-                                    self.log.info("Evolving pokemon: %s", self.pokemon_names[str(pokemon['pokemon_id'])])
-                                    self.evolve_pokemon(pokemon_id=pokemon['id'])
+                    if 'cp' in pokemon and pokemon_iv_percentage(pokemon) < self.MIN_KEEP_IV and pokemon["cp"] < self.KEEP_CP_OVER):  # remove only if the pokemon is under the IV and CP set up
                         self.log.debug("Releasing pokemon: %s", pokemon)
                         self.log.info("Releasing pokemon: %s IV: %s", self.pokemon_names[str(pokemon['pokemon_id'])], pokemon_iv_percentage(pokemon))
-                        self.release_pokemon(pokemon_id=pokemon["id"])
+                        self.release_pokemon(pokemon_id=pokemon["id"])  # release the unwanted pokemon
 
         if self.RELEASE_DUPLICATES:
             for pokemons in caught_pokemon.values():
@@ -422,9 +417,7 @@ class PGoApi:
                                     self.log.debug("Releasing pokemon: %s", pokemon)
                                     self.log.info("Releasing pokemon: %s IV: %s", self.pokemon_names[str(pokemon['pokemon_id'])], pokemon_iv_percentage(pokemon))
                                     self.release_pokemon(pokemon_id=pokemon["id"])
-
-                        else:
-                            last_pokemon = pokemon
+                                last_pokemon = pokemon
 
         return self.call()
 
@@ -561,7 +554,6 @@ class PGoApi:
         return True
 
     def main_loop(self):
-        self.heartbeat()
         while True:
             self.heartbeat()
             sleep(1) # If you want to make it faster, delete this line... would not recommend though
