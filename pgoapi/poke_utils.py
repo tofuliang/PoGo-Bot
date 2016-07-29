@@ -26,7 +26,7 @@ def get_inventory_data(res, poke_names):
         inventory_items_pokemon_list,
         key=lambda pokemon: pokemon['pokemon_data']['cp']
     )
-	
+
     rs = "\n"
     i = 0
 
@@ -39,6 +39,7 @@ def get_inventory_data(res, poke_names):
             rs += "{0: <35}".format(r)
 
     return rs
+
 
 def get_incubators_stat(res):
     inventory_delta = res['responses']['GET_INVENTORY'].get('inventory_delta', {})
