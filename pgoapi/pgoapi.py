@@ -156,7 +156,7 @@ class PGoApi:
         self.MAX_BALL_TYPE = config.get("MAX_BALL_TYPE", 0)
         self.RANDOM_SLEEP_TIME = config.get("RANDOM_SLEEP_TIME", 0)
         self._req_method_list = []
-        self._heartbeat_number = 5
+        self._heartbeat_number = 0
         self.pokemon_names = pokemon_names
         self.pokeballs = [0, 0, 0, 0]  # pokeball counts. set to 0 to force atleast one fort check  before trying to capture pokemon
         self.min_item_counts = dict(
