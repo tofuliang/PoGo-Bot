@@ -155,6 +155,7 @@ class PGoApi:
         self.DUPLICATE_CP_FORGIVENESS = config.get("DUPLICATE_CP_FORGIVENESS", 0)
         self.MAX_BALL_TYPE = config.get("MAX_BALL_TYPE", 0)
         self.RANDOM_SLEEP_TIME = config.get("RANDOM_SLEEP_TIME", 0)
+        self.VERBOSE = config.get("VERBOSE", 0)
         self._req_method_list = []
         self._heartbeat_number = 5
         self.pokemon_names = pokemon_names
@@ -256,7 +257,7 @@ class PGoApi:
                 player_stats = {}
             currencies = player_data.get('currencies', [])
             currency_data = ",".join(map(lambda x: "{0}: {1}".format(x.get('name', 'NA'), x.get('amount', 'NA')), currencies))
-            if self._heartbeat_number % 10 == 0 or self._heartbeat_number == 0:
+            if self.VERBOSE:
                 self.log.info("\n\n Username: %s, Lvl: %s, XP: %s/%s \n Currencies: %s \n", player_data.get('username', 'NA'), player_stats.get('level', 'NA'), player_stats.get('experience', 'NA'), player_stats.get('next_level_xp', 'NA'), currency_data)  # display stat
 
         if 'GET_INVENTORY' in res['responses']:
@@ -264,7 +265,8 @@ class PGoApi:
                 res['responses']['lat'] = self._posf[0]
                 res['responses']['lng'] = self._posf[1]
                 f.write(json.dumps(res['responses'], indent=2))
-            self.log.info("\n List of Pokemon:\n" + get_inventory_data(res, self.pokemon_names) + "\nTotal Pokemon count: " + str(get_pokemon_num(res)) + "\nEgg Hatching status: " + get_incubators_stat(res) + "\n")
+            if self.VERBOSE:
+                self.log.info("\n\n List of Pokemon:\n" + get_inventory_data(res, self.pokemon_names) + "\n\nTotal Pokemon count: " + str(get_pokemon_num(res)) + "\nEgg Hatching status: " + get_incubators_stat(res) + "\n")
             self.log.debug(self.cleanup_inventory(res['responses']['GET_INVENTORY']['inventory_delta']['inventory_items']))
 
         self._heartbeat_number += 1
@@ -277,7 +279,8 @@ class PGoApi:
             for i, next_point in enumerate(get_increments(self._posf, step, self.config.get("STEP_SIZE", 200))):
                 self.set_position(*next_point)
                 self.heartbeat()
-                self.log.info("Sleeping before next heartbeat")
+                if self.VERBOSE:
+                    self.log.info("Sleeping before next heartbeat")
                 sleep(self.RANDOM_SLEEP_TIME * random.random() + 2)  # If you want to make it faster, delete this line... would not recommend though
                 # make sure we have atleast 1 ball
                 if sum(self.pokeballs) > 0:
@@ -296,7 +299,8 @@ class PGoApi:
         if destinations:
             destination_num = random.randint(0, min(5, len(destinations) - 1))
             fort = destinations[destination_num]
-            self.log.info("Walking to fort at %s,%s", fort['latitude'], fort['longitude'])
+            if !self.VERBOSE:
+                self.log.info("Walking to fort at %s,%s", fort['latitude'], fort['longitude'])
             self.walk_to((fort['latitude'], fort['longitude']))
             position = self._posf # FIXME ?
             res = self.fort_search(fort_id=fort['id'], fort_latitude=fort['latitude'], fort_longitude=fort['longitude'], player_latitude=position[0], player_longitude=position[1]).call()['responses']['FORT_SEARCH']
@@ -357,7 +361,7 @@ class PGoApi:
             inventory_items = self.get_inventory().call()['responses']['GET_INVENTORY']['inventory_delta']['inventory_items']
 
         all_actual_items = [xiq['inventory_item_data']["item"] for xiq in inventory_items if "item" in xiq['inventory_item_data']]
-        all_actual_item_str = "List of items:\n"
+        all_actual_item_str = "\n\nList of items:\n"
         all_actual_item_count = 0
         all_actual_items = sorted([x for x in all_actual_items if "count" in x], key=lambda x: x["item_id"])
         for xiq in all_actual_items:
@@ -366,7 +370,7 @@ class PGoApi:
             true_item_name = INVENTORY_DICT[xiq["item_id"]]
             all_actual_item_str += "Item_ID " + str(xiq["item_id"]) + "\titem count " + str(xiq["count"]) + "\t(" + true_item_name + ")\n"
             all_actual_item_count += xiq["count"]
-        all_actual_item_str += "Total item count: " + str(all_actual_item_count)
+        all_actual_item_str += "\nTotal item count: " + str(all_actual_item_count) + "\n"
         self.log.info(all_actual_item_str)
 
         caught_pokemon = defaultdict(list)
@@ -380,7 +384,8 @@ class PGoApi:
                 item = inventory_item['inventory_item_data']['item']  # Check to see if your holding too many items and recycles them
                 if item['item_id'] in self.min_item_counts and "count" in item and item['count'] > self.min_item_counts[item['item_id']]:
                     recycle_count = item['count'] - self.min_item_counts[item['item_id']]
-                    self.log.info("Recycling {0}, item count {1}".format(INVENTORY_DICT[item['item_id']], recycle_count))
+                    if !self.VERBOSE:
+                        self.log.info("Recycling {0}, item count {1}".format(INVENTORY_DICT[item['item_id']], recycle_count))
                     self.recycle_inventory_item(item_id=item['item_id'], count=recycle_count)
 
         for pokemons in caught_pokemon.values():
@@ -516,7 +521,8 @@ class PGoApi:
             self.log.info('Login process failed')
             return False
 
-        self.log.info('Starting RPC login sequence (app simulation)')
+        if !self.VERBOSE:
+            self.log.info('Starting RPC login sequence (app simulation)')
         self.get_player()
         self.get_hatched_eggs()
         self.get_inventory()
@@ -550,7 +556,8 @@ class PGoApi:
         if 'auth_ticket' in response:
             self._auth_provider.set_ticket(response['auth_ticket'].values())
 
-        self.log.info('Finished RPC login sequence (app simulation)')
+        if !self.VERBOSE:
+            self.log.info('Finished RPC login sequence (app simulation)')
         self.log.info('Login process completed')
 
         return True
