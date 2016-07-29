@@ -265,8 +265,7 @@ class PGoApi:
                 res['responses']['lat'] = self._posf[0]
                 res['responses']['lng'] = self._posf[1]
                 f.write(json.dumps(res['responses'], indent=2))
-            if self.VERBOSE:
-                self.log.info("\n\n List of Pokemon:\n" + get_inventory_data(res, self.pokemon_names) + "\n\nTotal Pokemon count: " + str(get_pokemon_num(res)) + "\nEgg Hatching status: " + get_incubators_stat(res) + "\n")
+            self.log.info("\n\n List of Pokemon:\n" + get_inventory_data(res, self.pokemon_names) + "\n\nTotal Pokemon count: " + str(get_pokemon_num(res)) + "\nEgg Hatching status: " + get_incubators_stat(res) + "\n")
             self.log.debug(self.cleanup_inventory(res['responses']['GET_INVENTORY']['inventory_delta']['inventory_items']))
 
         self._heartbeat_number += 1
@@ -299,7 +298,7 @@ class PGoApi:
         if destinations:
             destination_num = random.randint(0, min(5, len(destinations) - 1))
             fort = destinations[destination_num]
-            if !self.VERBOSE:
+            if self.VERBOSE:
                 self.log.info("Walking to fort at %s,%s", fort['latitude'], fort['longitude'])
             self.walk_to((fort['latitude'], fort['longitude']))
             position = self._posf # FIXME ?
@@ -361,7 +360,7 @@ class PGoApi:
             inventory_items = self.get_inventory().call()['responses']['GET_INVENTORY']['inventory_delta']['inventory_items']
 
         all_actual_items = [xiq['inventory_item_data']["item"] for xiq in inventory_items if "item" in xiq['inventory_item_data']]
-        all_actual_item_str = "\n\nList of items:\n"
+        all_actual_item_str = "\n\nList of items:\n\n"
         all_actual_item_count = 0
         all_actual_items = sorted([x for x in all_actual_items if "count" in x], key=lambda x: x["item_id"])
         for xiq in all_actual_items:
@@ -384,7 +383,7 @@ class PGoApi:
                 item = inventory_item['inventory_item_data']['item']  # Check to see if your holding too many items and recycles them
                 if item['item_id'] in self.min_item_counts and "count" in item and item['count'] > self.min_item_counts[item['item_id']]:
                     recycle_count = item['count'] - self.min_item_counts[item['item_id']]
-                    if !self.VERBOSE:
+                    if self.VERBOSE:
                         self.log.info("Recycling {0}, item count {1}".format(INVENTORY_DICT[item['item_id']], recycle_count))
                     self.recycle_inventory_item(item_id=item['item_id'], count=recycle_count)
 
@@ -521,7 +520,7 @@ class PGoApi:
             self.log.info('Login process failed')
             return False
 
-        if !self.VERBOSE:
+        if self.VERBOSE:
             self.log.info('Starting RPC login sequence (app simulation)')
         self.get_player()
         self.get_hatched_eggs()
@@ -556,7 +555,7 @@ class PGoApi:
         if 'auth_ticket' in response:
             self._auth_provider.set_ticket(response['auth_ticket'].values())
 
-        if !self.VERBOSE:
+        if self.VERBOSE:
             self.log.info('Finished RPC login sequence (app simulation)')
         self.log.info('Login process completed')
 
