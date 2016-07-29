@@ -235,15 +235,14 @@ class PGoApi:
 
     def heartbeat(self):
         self.get_player()
-        if self._heartbeat_number % 10 == 0 or self._heartbeat_number == 0:  # every 10 heartbeats do a inventory check
-            self.check_awarded_badges()
-            self.get_inventory()
         res = self.call()
         if res.get("direction", -1) == 102:
             self.log.error("There were a problem responses for api call: %s. Restarting!!!", res)
             raise AuthException("Token probably expired?")
+        if self._heartbeat_number % 10 == 0 or self._heartbeat_number == 0:  # every 10 heartbeats do a inventory check
+            self.check_awarded_badges()
+            self.get_inventory()
         self.log.debug('Heartbeat dictionary: \n\r{}'.format(json.dumps(res, indent=2)))
-
         if 'GET_PLAYER' in res['responses']:
             player_data = res['responses'].get('GET_PLAYER', {}).get('player_data', {})
             if os.path.isfile("accounts/%s.json" % self.config['username']):
@@ -257,14 +256,13 @@ class PGoApi:
                 player_stats = {}
             currencies = player_data.get('currencies', [])
             currency_data = ",".join(map(lambda x: "{0}: {1}".format(x.get('name', 'NA'), x.get('amount', 'NA')), currencies))
-            self.log.debug("\n\n Username: %s, Lvl: %s, XP: %s/%s \n Currencies: %s \n", player_data.get('username', 'NA'), player_stats.get('level', 'NA'), player_stats.get('experience', 'NA'), player_stats.get('next_level_xp', 'NA'), currency_data)  # display stat
-
         if 'GET_INVENTORY' in res['responses']:
             with open("accounts/%s.json" % self.config['username'], "w") as f:
                 res['responses']['lat'] = self._posf[0]
                 res['responses']['lng'] = self._posf[1]
                 f.write(json.dumps(res['responses'], indent=2))
-            self.log.info("\n\n List of Pokemon:\n" + get_inventory_data(res, self.pokemon_names) + "\n\nTotal Pokemon count: " + str(get_pokemon_num(res)) + "\nEgg Hatching status: " + get_incubators_stat(res) + "\n")
+            self.log.info("\n List of Pokemon:\n" + get_inventory_data(res, self.pokemon_names) + "\nTotal Pokemon count: " + str(get_pokemon_num(res)) + "\nEgg Hatching status: " + get_incubators_stat(res) + "\n")
+            self.log.info("\n Username: %s, Lvl: %s, XP: %s/%s \n Currencies: %s \n", player_data.get('username', 'NA'), player_stats.get('level', 'NA'), player_stats.get('experience', 'NA'), player_stats.get('next_level_xp', 'NA'), currency_data)
             self.log.debug(self.cleanup_inventory(res['responses']['GET_INVENTORY']['inventory_delta']['inventory_items']))
 
         self._heartbeat_number += 1
