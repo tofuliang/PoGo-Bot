@@ -28,32 +28,32 @@ import os.path
 logger = logging.getLogger(__name__)
 
 # Candy needed to evolve pokemon  to add new pokemon to auto evolve list edit them here
-CANDY_NEEDED_TO_EVOLVE = {1: 24,  # Bulbasaur
+CANDY_NEEDED_TO_EVOLVE = {1: 124,  # Bulbasaur
                           2: 99,  # Ivysaur
-                          4: 24,  # Charmander
+                          4: 124,  # Charmander
                           5: 99,  # Charmeleon
-                          7: 24,  # Squirtle
+                          7: 124,  # Squirtle
                           8: 99,  # Wartortle
-                          10: 11,  # Caterpie
+                          10: 61,  # Caterpie
                           11: 49,  # Metapod
-                          13: 11,  # Weedle
+                          13: 61,  # Weedle
                           14: 49,  # Kakuna
-                          16: 11,  # Pidgey
+                          16: 61,  # Pidgey
                           17: 49,  # Pidgeotto
                           19: 24,  # Rattata
                           21: 49,  # Spearow
                           23: 49,  # Ekans
                           25: 49,
                           27: 49,
-                          29: 24,
+                          29: 124,
                           30: 99,
-                          32: 24,
+                          32: 124,
                           33: 99,
                           35: 49,
                           37: 49,
                           39: 50,
                           41: 44,
-                          43: 24,
+                          43: 124,
                           44: 99,
                           46: 49,
                           48: 49,
@@ -62,16 +62,16 @@ CANDY_NEEDED_TO_EVOLVE = {1: 24,  # Bulbasaur
                           54: 49,
                           56: 49,
                           58: 49,
-                          60: 24,  # Poliwag
+                          60: 124,  # Poliwag
                           61: 99,
-                          63: 24,
+                          63: 124,
                           64: 99,
-                          66: 24,
+                          66: 124,
                           67: 99,
-                          69: 24,
+                          69: 124,
                           70: 99,
                           72: 49,
-                          74: 24,
+                          74: 124,
                           75: 99,
                           77: 49,
                           79: 49,
@@ -80,7 +80,7 @@ CANDY_NEEDED_TO_EVOLVE = {1: 24,  # Bulbasaur
                           86: 49,
                           88: 49,
                           90: 49,  # Shellder
-                          92: 24,
+                          92: 124,
                           93: 99,
                           96: 49,  # Drowzee
                           98: 49,
@@ -96,7 +96,7 @@ CANDY_NEEDED_TO_EVOLVE = {1: 24,  # Bulbasaur
                           133: 24,
                           138: 49,
                           140: 49,
-                          147: 24,
+                          147: 124,
                           148: 99}
 
 POKEBALLS = ["Pokeball", "Great Ball", "Ultra Ball", "Master Ball"]  # you only get one master ball dont waste it botting
@@ -370,36 +370,31 @@ class PGoApi:
         caught_pokemon = defaultdict(list)
         for inventory_item in inventory_items:
             if "pokemon_data" in inventory_item['inventory_item_data']:
-                # is a pokemon:
+                # This code block checks to see if the inventory item is an item or pokemon
                 pokemon = inventory_item['inventory_item_data']['pokemon_data']
                 if 'cp' in pokemon and "favorite" not in pokemon:
                     caught_pokemon[pokemon["pokemon_id"]].append(pokemon)
             elif "item" in inventory_item['inventory_item_data']:
-                item = inventory_item['inventory_item_data']['item']
+                item = inventory_item['inventory_item_data']['item']  # Check to see if your holding too many items and recycles them
                 if item['item_id'] in self.min_item_counts and "count" in item and item['count'] > self.min_item_counts[item['item_id']]:
                     recycle_count = item['count'] - self.min_item_counts[item['item_id']]
                     self.log.info("Recycling {0}, item count {1}".format(INVENTORY_DICT[item['item_id']], recycle_count))
                     self.recycle_inventory_item(item_id=item['item_id'], count=recycle_count)
 
         for pokemons in caught_pokemon.values():
-            if len(pokemons) > MIN_SIMILAR_POKEMON:  # if you have more then same amount of pokemon do this
+            if len(pokemons) > MIN_SIMILAR_POKEMON:  # if you have more than 1 of the same amount of pokemon do this
                 pokemons = sorted(pokemons, lambda x, y: cmp(x['cp'], y['cp']), reverse=True)
+                for pokemon in pokemons:
+                    if pokemon['pokemon_id'] in CANDY_NEEDED_TO_EVOLVE:
+                        for inventory_item in inventory_items:
+                            if "pokemon_family" in inventory_item['inventory_item_data'] and (inventory_item['inventory_item_data']['pokemon_family']['family_id'] == pokemon['pokemon_id'] or inventory_item['inventory_item_data']['pokemon_family']['family_id'] == (pokemon['pokemon_id'] - 1)) and inventory_item['inventory_item_data']['pokemon_family']['candy'] > CANDY_NEEDED_TO_EVOLVE[pokemon['pokemon_id']]:  # Check to see if the pokemon is able to evolve or not, supports t2 evolutions 
+                                self.log.info("Evolving pokemon: %s", self.pokemon_names[str(pokemon['pokemon_id'])])
+                                self.evolve_pokemon(pokemon_id=pokemon['id'])  # quick press ctrl + c to stop the evolution
                 for pokemon in pokemons[MIN_SIMILAR_POKEMON:]:
-                    if 'cp' in pokemon and pokemon_iv_percentage(pokemon) > self.MIN_KEEP_IV and pokemon["cp"] > self.KEEP_CP_OVER:  # Keep only if the pokemon is over the IV and CP set up
-                        if pokemon['pokemon_id'] in CANDY_NEEDED_TO_EVOLVE:
-                            for inventory_item in inventory_items:
-                                if "pokemon_family" in inventory_item['inventory_item_data'] and inventory_item['inventory_item_data']['pokemon_family']['family_id'] == pokemon['pokemon_id'] and inventory_item['inventory_item_data']['pokemon_family']['candy'] > CANDY_NEEDED_TO_EVOLVE[pokemon['pokemon_id']]:
-                                    self.log.info("Evolving pokemon: %s", self.pokemon_names[str(pokemon['pokemon_id'])])
-                                    self.evolve_pokemon(pokemon_id=pokemon['id'])
-                    else:
-                        if pokemon['pokemon_id'] in CANDY_NEEDED_TO_EVOLVE:
-                            for inventory_item in inventory_items:
-                                if "pokemon_family" in inventory_item['inventory_item_data'] and inventory_item['inventory_item_data']['pokemon_family']['family_id'] == pokemon['pokemon_id'] and inventory_item['inventory_item_data']['pokemon_family']['candy'] > CANDY_NEEDED_TO_EVOLVE[pokemon['pokemon_id']]:
-                                    self.log.info("Evolving pokemon: %s", self.pokemon_names[str(pokemon['pokemon_id'])])
-                                    self.evolve_pokemon(pokemon_id=pokemon['id'])
+                    if 'cp' in pokemon and pokemon_iv_percentage(pokemon) < self.MIN_KEEP_IV and pokemon["cp"] < self.KEEP_CP_OVER):  # remove only if the pokemon is under the IV and CP set up
                         self.log.debug("Releasing pokemon: %s", pokemon)
                         self.log.info("Releasing pokemon: %s IV: %s", self.pokemon_names[str(pokemon['pokemon_id'])], pokemon_iv_percentage(pokemon))
-                        self.release_pokemon(pokemon_id=pokemon["id"])
+                        self.release_pokemon(pokemon_id=pokemon["id"])  # release the unwanted pokemon
 
         if self.RELEASE_DUPLICATES:
             for pokemons in caught_pokemon.values():
@@ -422,9 +417,7 @@ class PGoApi:
                                     self.log.debug("Releasing pokemon: %s", pokemon)
                                     self.log.info("Releasing pokemon: %s IV: %s", self.pokemon_names[str(pokemon['pokemon_id'])], pokemon_iv_percentage(pokemon))
                                     self.release_pokemon(pokemon_id=pokemon["id"])
-
-                        else:
-                            last_pokemon = pokemon
+                                last_pokemon = pokemon
 
         return self.call()
 
@@ -561,7 +554,6 @@ class PGoApi:
         return True
 
     def main_loop(self):
-        self.heartbeat()
         while True:
             self.heartbeat()
             sleep(1) # If you want to make it faster, delete this line... would not recommend though
