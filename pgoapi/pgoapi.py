@@ -337,7 +337,7 @@ class PGoApi:
         neighbors = get_neighbors(self._posf)
         return self.get_map_objects(latitude=position[0], longitude=position[1], since_timestamp_ms=[0] * len(neighbors), cell_id=neighbors).call()
 
-    def attempt_catch(self, encounter_id, spawn_point_guid, ball_type):
+    def attempt_catch(self, encounter_id, spawn_point_id, ball_type):
         r = self.catch_pokemon(
             normalized_reticle_size=1.950,
             pokeball=ball_type,
@@ -345,12 +345,16 @@ class PGoApi:
             hit_pokemon=True,
             normalized_hit_position=1,
             encounter_id=encounter_id,
-            spawn_point_guid=spawn_point_guid,
+            spawn_point_id=spawn_point_id,
         ).call()['responses']['CATCH_POKEMON']
         self.log.info("Throwing pokeball type: %s", POKEBALLS[ball_type - 1]) # list the pokeball that was thrown
         if "status" in r:
             self.log.debug("Status: %d", r['status'])
             return r
+        elif r is None:  # This should detect a softban
+            self.log.info('Soft ban detected - Attempting bypass')
+            for bypass in itertools.repea(None, 40):  # Current bypass is to spin a fort 40 times
+                self.spin_near_fort()
 
     def cleanup_inventory(self, inventory_items=None):
         if not inventory_items:
