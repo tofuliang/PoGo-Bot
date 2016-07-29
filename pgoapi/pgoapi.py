@@ -257,8 +257,7 @@ class PGoApi:
                 player_stats = {}
             currencies = player_data.get('currencies', [])
             currency_data = ",".join(map(lambda x: "{0}: {1}".format(x.get('name', 'NA'), x.get('amount', 'NA')), currencies))
-            if self.VERBOSE:
-                self.log.info("\n\n Username: %s, Lvl: %s, XP: %s/%s \n Currencies: %s \n", player_data.get('username', 'NA'), player_stats.get('level', 'NA'), player_stats.get('experience', 'NA'), player_stats.get('next_level_xp', 'NA'), currency_data)  # display stat
+            self.log.debug("\n\n Username: %s, Lvl: %s, XP: %s/%s \n Currencies: %s \n", player_data.get('username', 'NA'), player_stats.get('level', 'NA'), player_stats.get('experience', 'NA'), player_stats.get('next_level_xp', 'NA'), currency_data)  # display stat
 
         if 'GET_INVENTORY' in res['responses']:
             with open("accounts/%s.json" % self.config['username'], "w") as f:
@@ -278,8 +277,7 @@ class PGoApi:
             for i, next_point in enumerate(get_increments(self._posf, step, self.config.get("STEP_SIZE", 200))):
                 self.set_position(*next_point)
                 self.heartbeat()
-                if self.VERBOSE:
-                    self.log.info("Sleeping before next heartbeat")
+                self.log.debug("Sleeping before next heartbeat")
                 sleep(self.RANDOM_SLEEP_TIME * random.random() + 2)  # If you want to make it faster, delete this line... would not recommend though
                 # make sure we have atleast 1 ball
                 if sum(self.pokeballs) > 0:
@@ -298,8 +296,7 @@ class PGoApi:
         if destinations:
             destination_num = random.randint(0, min(5, len(destinations) - 1))
             fort = destinations[destination_num]
-            if self.VERBOSE:
-                self.log.info("Walking to fort at %s,%s", fort['latitude'], fort['longitude'])
+            self.log.info("Walking to fort at %s,%s", fort['latitude'], fort['longitude'])
             self.walk_to((fort['latitude'], fort['longitude']))
             position = self._posf # FIXME ?
             res = self.fort_search(fort_id=fort['id'], fort_latitude=fort['latitude'], fort_longitude=fort['longitude'], player_latitude=position[0], player_longitude=position[1]).call()['responses']['FORT_SEARCH']
@@ -383,8 +380,7 @@ class PGoApi:
                 item = inventory_item['inventory_item_data']['item']  # Check to see if your holding too many items and recycles them
                 if item['item_id'] in self.min_item_counts and "count" in item and item['count'] > self.min_item_counts[item['item_id']]:
                     recycle_count = item['count'] - self.min_item_counts[item['item_id']]
-                    if self.VERBOSE:
-                        self.log.info("Recycling {0}, item count {1}".format(INVENTORY_DICT[item['item_id']], recycle_count))
+                    self.log.debug("Recycling {0}, item count {1}".format(INVENTORY_DICT[item['item_id']], recycle_count))
                     self.recycle_inventory_item(item_id=item['item_id'], count=recycle_count)
 
         for pokemons in caught_pokemon.values():
@@ -520,8 +516,7 @@ class PGoApi:
             self.log.info('Login process failed')
             return False
 
-        if self.VERBOSE:
-            self.log.info('Starting RPC login sequence (app simulation)')
+        self.log.debug('Starting RPC login sequence (app simulation)')
         self.get_player()
         self.get_hatched_eggs()
         self.get_inventory()
@@ -555,8 +550,7 @@ class PGoApi:
         if 'auth_ticket' in response:
             self._auth_provider.set_ticket(response['auth_ticket'].values())
 
-        if self.VERBOSE:
-            self.log.info('Finished RPC login sequence (app simulation)')
+        self.log.debug('Finished RPC login sequence (app simulation)')
         self.log.info('Login process completed')
 
         return True
