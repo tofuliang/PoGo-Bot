@@ -390,6 +390,11 @@ class PGoApi:
                             if "pokemon_family" in inventory_item['inventory_item_data'] and (inventory_item['inventory_item_data']['pokemon_family']['family_id'] == pokemon['pokemon_id'] or inventory_item['inventory_item_data']['pokemon_family']['family_id'] == (pokemon['pokemon_id'] - 1)) and inventory_item['inventory_item_data']['pokemon_family']['candy'] > CANDY_NEEDED_TO_EVOLVE[pokemon['pokemon_id']]:  # Check to see if the pokemon is able to evolve or not, supports t2 evolutions
                                 self.log.info("Evolving pokemon: %s", self.pokemon_names[str(pokemon['pokemon_id'])])
                                 self.evolve_pokemon(pokemon_id=pokemon['id'])  # quick press ctrl + c to stop the evolution
+                for pokemon in pokemons[MIN_SIMILAR_POKEMON:]:
+                    if 'cp' in pokemon and pokemon_iv_percentage(pokemon) < self.MIN_KEEP_IV and pokemon["cp"] < self.KEEP_CP_OVER:  # remove only if the pokemon is under the IV and CP set up
+                        self.log.debug("Releasing pokemon: %s", pokemon)
+                        self.log.info("Releasing pokemon: %s IV: %s", self.pokemon_names[str(pokemon['pokemon_id'])], pokemon_iv_percentage(pokemon))
+                        self.release_pokemon(pokemon_id=pokemon["id"])  # release the unwanted pokemon
 
         if self.RELEASE_DUPLICATES:
             for pokemons in caught_pokemon.values():
@@ -401,25 +406,17 @@ class PGoApi:
                             # Compare two pokemon if the larger IV pokemon has less then DUPLICATE_CP_FORGIVENESS times CP keep it
                             if pokemon_iv_percentage(pokemon) > pokemon_iv_percentage(last_pokemon):
                                 if pokemon['cp'] * self.DUPLICATE_CP_FORGIVENESS < last_pokemon['cp']:
-                                    try:
-                                        atgym = len(last_pokemon['deployed_fort_id']) > 0
-                                    except:
-                                        atgym = False
-                                    if not atgym:
-                                        self.log.debug("Releasing pokemon: %s", last_pokemon)
-                                        self.log.info("Releasing pokemon: %s IV: %s", self.pokemon_names[str(last_pokemon['pokemon_id'])], pokemon_iv_percentage(last_pokemon))
-                                        self.release_pokemon(pokemon_id=last_pokemon["id"])
+                                    # release the lesser!
+                                    self.log.debug("Releasing pokemon: %s", last_pokemon)
+                                    self.log.info("Releasing pokemon: %s IV: %s", self.pokemon_names[str(last_pokemon['pokemon_id'])], pokemon_iv_percentage(last_pokemon))
+                                    self.release_pokemon(pokemon_id=last_pokemon["id"])
                                 last_pokemon = pokemon
                             else:
                                 if last_pokemon['cp'] * self.DUPLICATE_CP_FORGIVENESS > pokemon['cp']:
-                                    try:
-                                        atgym = len(pokemon['deployed_fort_id']) > 0
-                                    except:
-                                        atgym = False
-                                    if not atgym:
-                                        self.log.debug("Releasing pokemon: %s", pokemon)
-                                        self.log.info("Releasing pokemon: %s IV: %s", self.pokemon_names[str(pokemon['pokemon_id'])], pokemon_iv_percentage(pokemon))
-                                        self.release_pokemon(pokemon_id=pokemon["id"])
+                                    # release the lesser!
+                                    self.log.debug("Releasing pokemon: %s", pokemon)
+                                    self.log.info("Releasing pokemon: %s IV: %s", self.pokemon_names[str(pokemon['pokemon_id'])], pokemon_iv_percentage(pokemon))
+                                    self.release_pokemon(pokemon_id=pokemon["id"])
                                 last_pokemon = pokemon
 
         return self.call()
