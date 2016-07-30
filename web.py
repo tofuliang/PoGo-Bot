@@ -1,12 +1,8 @@
 import flask
 import os
-import thread
 import logging
-import argparse
 
 from flask.helpers import send_from_directory
-from flask.templating import render_template
-from pgoapi import PGoApi
 from flask import Flask
 
 log = logging.getLogger(__name__)
