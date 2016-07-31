@@ -261,6 +261,8 @@ class PGoApi:
                 res['responses']['lat'] = self._posf[0]
                 res['responses']['lng'] = self._posf[1]
                 f.write(json.dumps(res['responses'], indent=2))
+            # new inventory data has just been saved, clearing evolved pokemons list
+            self.evolved_pokemon_ids = []
             # create string with pokemon list, add users info and print everything
             self.log.info("\n\nList of Pokemon:\n" + get_inventory_data(res, self.pokemon_names) + "\nTotal Pokemon count: " + str(get_pokemon_num(res)) + "\nEgg Hatching status: " + get_incubators_stat(res) + "\n")
             self.log.info("\n\n Username: %s, Lvl: %s, XP: %s/%s \n Currencies: %s \n", player_data.get('username', 'NA'), player_stats.get('level', 'NA'), player_stats.get('experience', 'NA'), player_stats.get('next_level_xp', 'NA'), currency_data)
@@ -406,30 +408,31 @@ class PGoApi:
                     pokemons = sorted(pokemons, lambda x, y: cmp(self.pokemon_names[str(x['pokemon_id'])], self.pokemon_names[str(y['pokemon_id'])]))
                     last_pokemon = pokemons[0]
                     for pokemon in pokemons[MIN_SIMILAR_POKEMON:]:
-                        if self.pokemon_names[str(pokemon['pokemon_id'])] == self.pokemon_names[str(last_pokemon['pokemon_id'])]:
-                            # Compare two pokemon if the larger IV pokemon has less then DUPLICATE_CP_FORGIVENESS times CP keep it
-                            if pokemon_iv_percentage(pokemon) > pokemon_iv_percentage(last_pokemon):
-                                if pokemon['cp'] * self.DUPLICATE_CP_FORGIVENESS < last_pokemon['cp']:
-                                    try:
-                                        atgym = len(last_pokemon['deployed_fort_id']) > 0
-                                    except:
-                                        atgym = False
-                                    if not atgym:
-                                        self.log.debug("Releasing pokemon: %s", last_pokemon)
-                                        self.log.info("Releasing pokemon: %s IV: %s", self.pokemon_names[str(last_pokemon['pokemon_id'])], pokemon_iv_percentage(last_pokemon))
-                                        self.release_pokemon(pokemon_id=last_pokemon["id"])
-                                last_pokemon = pokemon
-                            else:
-                                if last_pokemon['cp'] * self.DUPLICATE_CP_FORGIVENESS > pokemon['cp']:
-                                    try:
-                                        atgym = len(pokemon['deployed_fort_id']) > 0
-                                    except:
-                                        atgym = False
-                                    if not atgym:
-                                        self.log.debug("Releasing pokemon: %s", pokemon)
-                                        self.log.info("Releasing pokemon: %s IV: %s", self.pokemon_names[str(pokemon['pokemon_id'])], pokemon_iv_percentage(pokemon))
-                                        self.release_pokemon(pokemon_id=pokemon["id"])
-                                last_pokemon = pokemon
+                        if pokemon['id'] not in self.evolved_pokemon_ids:
+                            if self.pokemon_names[str(pokemon['pokemon_id'])] == self.pokemon_names[str(last_pokemon['pokemon_id'])]:
+                                # Compare two pokemon if the larger IV pokemon has less then DUPLICATE_CP_FORGIVENESS times CP keep it
+                                if pokemon_iv_percentage(pokemon) > pokemon_iv_percentage(last_pokemon):
+                                    if pokemon['cp'] * self.DUPLICATE_CP_FORGIVENESS < last_pokemon['cp']:
+                                        try:
+                                            atgym = len(last_pokemon['deployed_fort_id']) > 0
+                                        except:
+                                            atgym = False
+                                        if not atgym:
+                                            self.log.debug("Releasing pokemon: %s", last_pokemon)
+                                            self.log.info("Releasing pokemon: %s IV: %s", self.pokemon_names[str(last_pokemon['pokemon_id'])], pokemon_iv_percentage(last_pokemon))
+                                            self.release_pokemon(pokemon_id=last_pokemon["id"])
+                                    last_pokemon = pokemon
+                                else:
+                                    if last_pokemon['cp'] * self.DUPLICATE_CP_FORGIVENESS > pokemon['cp']:
+                                        try:
+                                            atgym = len(pokemon['deployed_fort_id']) > 0
+                                        except:
+                                            atgym = False
+                                        if not atgym:
+                                            self.log.debug("Releasing pokemon: %s", pokemon)
+                                            self.log.info("Releasing pokemon: %s IV: %s", self.pokemon_names[str(pokemon['pokemon_id'])], pokemon_iv_percentage(pokemon))
+                                            self.release_pokemon(pokemon_id=pokemon["id"])
+                                    last_pokemon = pokemon
 
         return self.call()
 
