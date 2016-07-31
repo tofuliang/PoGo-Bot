@@ -292,6 +292,7 @@ class PGoApi:
     def spin_near_fort(self):
         map_cells = self.nearby_map_objects().get('responses', {}).get('GET_MAP_OBJECTS', {}).get('map_cells', {})
         forts = PGoApi.flatmap(lambda c: c.get('forts', []), map_cells)
+        sleep (3 * random.random() + 2)
         if self._start_pos and self._walk_count % self.config.get("RETURN_START_INTERVAL") == 0:
             destinations = filtered_forts(self._start_pos, forts)
         else:
@@ -321,7 +322,7 @@ class PGoApi:
     def catch_near_pokemon(self):
         map_cells = self.nearby_map_objects().get('responses', {}).get('GET_MAP_OBJECTS', {}).get('map_cells', {})
         pokemons = PGoApi.flatmap(lambda c: c.get('catchable_pokemons', []), map_cells)
-
+        sleep (3 * random.random() + 2)
         # catch first pokemon:
         origin = (self._posf[0], self._posf[1])
         pokemon_distances = [(pokemon, distance_in_meters(origin, (pokemon['latitude'], pokemon['longitude']))) for pokemon in pokemons]
