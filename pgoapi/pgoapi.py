@@ -147,6 +147,7 @@ class PGoApi:
         self._auth_provider = None
         self._api_endpoint = None
         self.config = config
+        self.evolved_pokemon_ids = []
         self.set_position(*start_pos)
         self._pokeball_type = 1
         self.MIN_KEEP_IV = config.get("MIN_KEEP_IV", 0)
@@ -155,7 +156,6 @@ class PGoApi:
         self.DUPLICATE_CP_FORGIVENESS = config.get("DUPLICATE_CP_FORGIVENESS", 0)
         self.MAX_BALL_TYPE = config.get("MAX_BALL_TYPE", 0)
         self.SLOW_BUT_STEALTH = config.get("SLOW_BUT_STEALTH", 0)
-        self.VERBOSE = config.get("VERBOSE", 0)
         self._req_method_list = []
         self._heartbeat_number = 0
         self.pokemon_names = pokemon_names
@@ -395,10 +395,11 @@ class PGoApi:
                         for inventory_item in inventory_items:
                             if "pokemon_family" in inventory_item['inventory_item_data'] and (inventory_item['inventory_item_data']['pokemon_family']['family_id'] == pokemon['pokemon_id'] or inventory_item['inventory_item_data']['pokemon_family']['family_id'] == (pokemon['pokemon_id'] - 1)) and inventory_item['inventory_item_data']['pokemon_family']['candy'] > CANDY_NEEDED_TO_EVOLVE[pokemon['pokemon_id']]:  # Check to see if the pokemon is able to evolve or not, supports t2 evolutions
                                 self.log.info("Evolving pokemon: %s", self.pokemon_names[str(pokemon['pokemon_id'])])
-                                self.evolve_pokemon(pokemon_id=pokemon['id'])  # quick press ctrl + c to stop the evolution
-                                caught_pokemon.pop(pokemon['pokemon_id'])
-                                if self.SLOW_BUT_STEALTH:
-                                    sleep(3 * random.random() + 30)
+                                if pokemon['id'] not in self.evolved_pokemon_ids:
+                                    self.evolve_pokemon(pokemon_id=pokemon['id'])  # quick press ctrl + c to stop the evolution
+                                    self.evolved_pokemon_ids.append(pokemon['id'])
+                                    if self.SLOW_BUT_STEALTH:
+                                        sleep(3 * random.random() + 30)
         if self.RELEASE_DUPLICATES:
             for pokemons in caught_pokemon.values():
                 if len(pokemons) > MIN_SIMILAR_POKEMON:
