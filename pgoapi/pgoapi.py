@@ -18,6 +18,7 @@ from pgoapi.protos.POGOProtos import Inventory_pb2 as Inventory
 import pickle
 import random
 import json
+import xml.etree.ElementTree as ETXML
 from pgoapi.location import distance_in_meters, get_increments, get_neighbors, get_route, filtered_forts
 # import pgoapi.protos.POGOProtos.Enums_pb2 as RpcEnum
 from pgoapi.poke_utils import pokemon_iv_percentage, get_inventory_data, get_pokemon_num, get_incubators_stat
@@ -148,6 +149,8 @@ class PGoApi:
         self._api_endpoint = None
         self.config = config
         self.evolved_pokemon_ids = []
+        self.GPX_lat = []
+        self.GPX_lon = []
         self.set_position(*start_pos)
         self._pokeball_type = 1
         self.MIN_KEEP_IV = config.get("MIN_KEEP_IV", 0)
@@ -272,6 +275,24 @@ class PGoApi:
 
     def walk_to(self, loc):
         self._walk_count += 1
+        if len(self.GPX_lat) == 0 and len(self.GPX_lon) == 0:
+            try:
+                tree = ETXML.parse('GPX.xml')
+                root = tree.getroot()
+                trk = root.getiterator()
+                point_number = len(trk) - 1
+                self.log.debug(str(point_number) + 'points found' + '\nTrak location: ' + trk[2].text)
+                for i in range(4, point_number):
+                    if str(trk[i].get('lat')) != str(None):
+                        self.GPX_lat.append(str(trk[i].get('lat')))
+                        self.GPX_lon.append(str(trk[i].get('lon')))
+            except:
+                self.log.debug('GPX data not found or some error has occured')
+                pass
+        if len(self.GPX_lat) == len(self.GPX_lon) and len(self.GPX_lat) > 0:
+            while i < point_number:
+                self.set_position(self.GPX_lat[i], self.GPX_lon[i], '20')
+                i += 1
         steps = get_route(self._posf, loc, self.config.get("USE_GOOGLE", False), self.config.get("GMAPS_API_KEY", ""))
         for step in steps:
             for i, next_point in enumerate(get_increments(self._posf, step, self.config.get("STEP_SIZE", 200))):
