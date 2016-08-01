@@ -396,8 +396,8 @@ class PGoApi:
                     if pokemon['pokemon_id'] in CANDY_NEEDED_TO_EVOLVE:
                         for inventory_item in inventory_items:
                             if "pokemon_family" in inventory_item['inventory_item_data'] and (inventory_item['inventory_item_data']['pokemon_family']['family_id'] == pokemon['pokemon_id'] or inventory_item['inventory_item_data']['pokemon_family']['family_id'] == (pokemon['pokemon_id'] - 1)) and inventory_item['inventory_item_data']['pokemon_family']['candy'] > CANDY_NEEDED_TO_EVOLVE[pokemon['pokemon_id']]:  # Check to see if the pokemon is able to evolve or not, supports t2 evolutions
-                                self.log.info("Evolving pokemon: %s", self.pokemon_names[str(pokemon['pokemon_id'])])
                                 if pokemon['id'] not in self.evolved_pokemon_ids:
+                                    self.log.info("Evolving pokemon: %s", self.pokemon_names[str(pokemon['pokemon_id'])])
                                     self.evolve_pokemon(pokemon_id=pokemon['id'])  # quick press ctrl + c to stop the evolution
                                     self.evolved_pokemon_ids.append(pokemon['id'])
                                     if self.SLOW_BUT_STEALTH:
