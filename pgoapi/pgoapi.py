@@ -417,7 +417,7 @@ class PGoApi:
                                         try:
                                             atgym = len(last_pokemon['deployed_fort_id']) > 0
                                             if atgym:
-                                                self.log.info("Pokemon %s not released because at gym", self.pokemon_names[str(last_pokemon['pokemon_id'])])
+                                                self.log.info("Pokemon %s CP: %s not released because at gym", self.pokemon_names[str(last_pokemon['pokemon_id'])], pokemon['cp'])
                                         except:
                                             atgym = False
                                         if not atgym:
