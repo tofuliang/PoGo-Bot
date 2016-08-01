@@ -275,24 +275,6 @@ class PGoApi:
 
     def walk_to(self, loc):
         self._walk_count += 1
-        if len(self.GPX_lat) == 0 and len(self.GPX_lon) == 0:
-            try:
-                tree = ETXML.parse('GPX.xml')
-                root = tree.getroot()
-                trk = root.getiterator()
-                point_number = len(trk) - 1
-                self.log.debug(str(point_number) + 'points found' + '\nTrak location: ' + trk[2].text)
-                for i in range(4, point_number):
-                    if str(trk[i].get('lat')) != str(None):
-                        self.GPX_lat.append(str(trk[i].get('lat')))
-                        self.GPX_lon.append(str(trk[i].get('lon')))
-            except:
-                self.log.debug('GPX data not found or some error has occured')
-                pass
-        if len(self.GPX_lat) == len(self.GPX_lon) and len(self.GPX_lat) > 0:
-            while i < point_number:
-                self.set_position(self.GPX_lat[i], self.GPX_lon[i], '20')
-                i += 1
         steps = get_route(self._posf, loc, self.config.get("USE_GOOGLE", False), self.config.get("GMAPS_API_KEY", ""))
         for step in steps:
             for i, next_point in enumerate(get_increments(self._posf, step, self.config.get("STEP_SIZE", 200))):
@@ -314,32 +296,53 @@ class PGoApi:
     # this is in charge of spinning a pokestop
     def spin_near_fort(self):
         map_cells = self.nearby_map_objects().get('responses', {}).get('GET_MAP_OBJECTS', {}).get('map_cells', {})
+        sleep(2 * random.random() + 5)
         forts = PGoApi.flatmap(lambda c: c.get('forts', []), map_cells)
-        sleep(3 * random.random() + 5)
-        if self._start_pos and self._walk_count % self.config.get("RETURN_START_INTERVAL") == 0:
-            destinations = filtered_forts(self._start_pos, forts)
+        # check if there are GPX data
+        if len(self.GPX_lat) == len(self.GPX_lon) and len(self.GPX_lat) > 0:
+            if self._walk_count < len(self.GPX_lon):
+                self.set_position(self.GPX_lat[self._walk_count], self.GPX_lon[self._walk_count], 20)
+                self._walk_count += 1
+                available_forts = filtered_forts((self.GPX_lat[self._walk_count], self.GPX_lon[self._walk_count]), forts)
+                sleep(1 * random.random() + 1)
+                for fort in available_forts:
+                    if fort[1] < 10:
+                        res = self.fort_search(fort_id=fort['id'], fort_latitude=fort['latitude'], fort_longitude=fort['longitude'], player_latitude=self.GPX_lat[self._walk_count], player_longitude=self.GPX_lon[self._walk_count]).call()['responses']['FORT_SEARCH']
+                        if 'lure_info' in fort:
+                            encounter_id = fort['lure_info']['encounter_id']
+                            fort_id = fort['lure_info']['fort_id']
+                            resp = self.disk_encounter(encounter_id=encounter_id, fort_id=fort_id, player_latitude=self.GPX_lat[self._walk_count], player_longitude=self.GPX_lon[self._walk_count]).call()['responses']['DISK_ENCOUNTER']
+                            if self.pokeballs[1] > 9 and self.pokeballs[2] > 4 and self.pokeballs[3] > 4:
+                                self.disk_encounter_pokemon(fort['lure_info'])
+            else:
+                self.walk_count = 0
+                self.spin_near_fort
+        # without GPX data bot wil go from pokestop to pokestop
         else:
-            destinations = filtered_forts(self._posf, forts)
-        if destinations:
-            destination_num = random.randint(0, min(5, len(destinations) - 1))
-            fort = destinations[destination_num]
-            self.log.info("Walking to fort at %s,%s", fort['latitude'], fort['longitude'])
-            self.walk_to((fort['latitude'], fort['longitude']))
-            position = self._posf # FIXME ?
-            res = self.fort_search(fort_id=fort['id'], fort_latitude=fort['latitude'], fort_longitude=fort['longitude'], player_latitude=position[0], player_longitude=position[1]).call()['responses']['FORT_SEARCH']
-            self.log.debug("Fort spinned: %s", res)
-            if 'lure_info' in fort:
-                encounter_id = fort['lure_info']['encounter_id']
-                fort_id = fort['lure_info']['fort_id']
-                position = self._posf
-                resp = self.disk_encounter(encounter_id=encounter_id, fort_id=fort_id, player_latitude=position[0], player_longitude=position[1]).call()['responses']['DISK_ENCOUNTER']
-                self.log.debug('Encounter response is: %s', resp)
-                if self.pokeballs[1] > 9 and self.pokeballs[2] > 4 and self.pokeballs[3] > 4:
-                    self.disk_encounter_pokemon(fort['lure_info'])
-            return True
-        else:
-            self.log.error("No fort to walk to!")
-            return False
+            if self._start_pos and self._walk_count % self.config.get("RETURN_START_INTERVAL") == 0:
+                destinations = filtered_forts(self._start_pos, forts)
+            else:
+                destinations = filtered_forts(self._posf, forts)
+            if destinations:
+                destination_num = random.randint(0, min(5, len(destinations) - 1))
+                fort = destinations[destination_num]
+                self.log.info("Walking to fort at %s,%s", fort['latitude'], fort['longitude'])
+                self.walk_to((fort['latitude'], fort['longitude']))
+                position = self._posf # FIXME ?
+                res = self.fort_search(fort_id=fort['id'], fort_latitude=fort['latitude'], fort_longitude=fort['longitude'], player_latitude=position[0], player_longitude=position[1]).call()['responses']['FORT_SEARCH']
+                self.log.debug("Fort spinned: %s", res)
+                if 'lure_info' in fort:
+                    encounter_id = fort['lure_info']['encounter_id']
+                    fort_id = fort['lure_info']['fort_id']
+                    position = self._posf
+                    resp = self.disk_encounter(encounter_id=encounter_id, fort_id=fort_id, player_latitude=position[0], player_longitude=position[1]).call()['responses']['DISK_ENCOUNTER']
+                    self.log.debug('Encounter response is: %s', resp)
+                    if self.pokeballs[1] > 9 and self.pokeballs[2] > 4 and self.pokeballs[3] > 4:
+                        self.disk_encounter_pokemon(fort['lure_info'])
+                return True
+            else:
+                self.log.error("No fort to walk to!")
+                return False
 
     # this will catch any nearby pokemon
     def catch_near_pokemon(self):
@@ -611,6 +614,22 @@ class PGoApi:
             sleep(3 * random.random() + 10)
 
         return True
+
+    def get_GPX(self):
+        if len(self.GPX_lat) == 0 and len(self.GPX_lon) == 0:
+            try:
+                tree = ETXML.parse('GPX.xml')
+                root = tree.getroot()
+                trk = root.getiterator()
+                point_number = len(trk) - 1
+                self.log.debug(str(point_number) + 'points found' + '\nTrak location: ' + trk[2].text)
+                for i in range(4, point_number):
+                    if str(trk[i].get('lat')) != str(None):
+                        self.GPX_lat.append(str(trk[i].get('lat')))
+                        self.GPX_lon.append(str(trk[i].get('lon')))
+            except:
+                self.log.debug('GPX data not found or some error has occured')
+                pass
 
     def main_loop(self):
         while True:
