@@ -382,7 +382,7 @@ class PGoApi:
     def cleanup_inventory(self, inventory_items=None):
         if not inventory_items:
             inventory_items = self.get_inventory().call()['responses']['GET_INVENTORY']['inventory_delta']['inventory_items']
-
+            sleep(3 * random.random() + 5)
         all_actual_items = [xiq['inventory_item_data']["item"] for xiq in inventory_items if "item" in xiq['inventory_item_data']]
         all_actual_item_str = "\n\nList of items:\n\n"
         all_actual_item_count = 0
@@ -417,25 +417,28 @@ class PGoApi:
                     if pokemon['pokemon_id'] in CANDY_NEEDED_TO_EVOLVE:
                         for inventory_item in inventory_items:
                             if "pokemon_family" in inventory_item['inventory_item_data'] and (inventory_item['inventory_item_data']['pokemon_family']['family_id'] == pokemon['pokemon_id'] or inventory_item['inventory_item_data']['pokemon_family']['family_id'] == (pokemon['pokemon_id'] - 1)) and inventory_item['inventory_item_data']['pokemon_family']['candy'] > CANDY_NEEDED_TO_EVOLVE[pokemon['pokemon_id']]:  # Check to see if the pokemon is able to evolve or not, supports t2 evolutions
-                                self.log.info("Evolving pokemon: %s", self.pokemon_names[str(pokemon['pokemon_id'])])
-                                if pokemon['id'] not in self.evolved_pokemon_ids:
+                                if pokemon['pokemon_id'] not in self.evolved_pokemon_ids:
+                                    self.log.info("Evolving pokemon: %s", self.pokemon_names[str(pokemon['pokemon_id'])])
                                     self.evolve_pokemon(pokemon_id=pokemon['id'])  # quick press ctrl + c to stop the evolution
-                                    self.evolved_pokemon_ids.append(pokemon['id'])
+                                    self.evolved_pokemon_ids.append(pokemon['pokemon_id'])
                                     if self.SLOW_BUT_STEALTH:
                                         sleep(3 * random.random() + 30)
         if self.RELEASE_DUPLICATES:
             for pokemons in caught_pokemon.values():
                 if len(pokemons) > MIN_SIMILAR_POKEMON:
-                    pokemons = sorted(pokemons, lambda x, y: cmp(self.pokemon_names[str(x['pokemon_id'])], self.pokemon_names[str(y['pokemon_id'])]))
+                    pokemons = sorted(pokemons, lambda x, y: cmp(x['cp'], y['cp']), reverse=True)
                     last_pokemon = pokemons[0]
-                    for pokemon in pokemons[MIN_SIMILAR_POKEMON:]:
-                        if pokemon['id'] not in self.evolved_pokemon_ids:
+                    for pokemon in pokemons:
+                        self.log.debug('Excess pokemon: %s CP: %s', self.pokemon_names[str(pokemon['pokemon_id'])], pokemon['cp'])
+                        if pokemon['pokemon_id'] not in self.evolved_pokemon_ids:
                             if self.pokemon_names[str(pokemon['pokemon_id'])] == self.pokemon_names[str(last_pokemon['pokemon_id'])]:
                                 # Compare two pokemon if the larger IV pokemon has less then DUPLICATE_CP_FORGIVENESS times CP keep it
                                 if pokemon_iv_percentage(pokemon) > pokemon_iv_percentage(last_pokemon):
                                     if pokemon['cp'] * self.DUPLICATE_CP_FORGIVENESS < last_pokemon['cp']:
                                         try:
                                             atgym = len(last_pokemon['deployed_fort_id']) > 0
+                                            if atgym:
+                                                self.log.info("Pokemon %s CP: %s not released because at gym", self.pokemon_names[str(last_pokemon['pokemon_id'])], pokemon['cp'])
                                         except:
                                             atgym = False
                                         if not atgym:
@@ -447,6 +450,8 @@ class PGoApi:
                                     if last_pokemon['cp'] * self.DUPLICATE_CP_FORGIVENESS > pokemon['cp']:
                                         try:
                                             atgym = len(pokemon['deployed_fort_id']) > 0
+                                            if atgym:
+                                                self.log.info("Pokemon %s not released because at gym", self.pokemon_names[str(pokemon['pokemon_id'])])
                                         except:
                                             atgym = False
                                         if not atgym:
@@ -572,7 +577,7 @@ class PGoApi:
         self.get_inventory()
         self.check_awarded_badges()
         self.download_settings(hash="05daf51635c82611d1aac95c0b051d3ec088a930")  # not sure what this is but dont change it
-
+        sleep(3 * random.random() + 5)
         response = self.call()
 
         if not response:
