@@ -361,7 +361,7 @@ class PGoApi:
     def cleanup_inventory(self, inventory_items=None):
         if not inventory_items:
             inventory_items = self.get_inventory().call()['responses']['GET_INVENTORY']['inventory_delta']['inventory_items']
-
+            sleep(3 * random.random() + 5)
         all_actual_items = [xiq['inventory_item_data']["item"] for xiq in inventory_items if "item" in xiq['inventory_item_data']]
         all_actual_item_str = "\n\nList of items:\n\n"
         all_actual_item_count = 0
@@ -551,7 +551,7 @@ class PGoApi:
         self.get_inventory()
         self.check_awarded_badges()
         self.download_settings(hash="05daf51635c82611d1aac95c0b051d3ec088a930")  # not sure what this is but dont change it
-
+        sleep(3 * random.random() + 5)
         response = self.call()
 
         if not response:
