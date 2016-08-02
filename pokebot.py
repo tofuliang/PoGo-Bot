@@ -66,7 +66,7 @@ def init_config():
     return config
 
 
-def search_GPX(self):
+def search_GPX():
     try:
         tree = ETXML.parse('GPX.xml')
         root = tree.getroot()
