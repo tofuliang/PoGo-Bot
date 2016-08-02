@@ -160,6 +160,7 @@ class PGoApi:
         self._heartbeat_number = 0
         self.pokemon_names = pokemon_names
         self.pokeballs = [0, 0, 0, 0]  # pokeball counts. set to 0 to force atleast one fort check  before trying to capture pokemon
+        self.map_cells = dict()
         self.min_item_counts = dict(
             ((getattr(Inventory, key), value) for key, value in config.get('MIN_ITEM_COUNTS', {}).iteritems())
         )
@@ -203,6 +204,9 @@ class PGoApi:
 
     def get_position(self):
         return (self._position_lat, self._position_lng, self._position_alt)
+
+    def get_position_raw(self):
+        return self._posf
 
     def set_position(self, lat, lng, alt):
         self.log.debug('Set Position - Lat: %s Long: %s Alt: %s', lat, lng, alt)
@@ -325,6 +329,8 @@ class PGoApi:
         map_cells = self.nearby_map_objects().get('responses', {}).get('GET_MAP_OBJECTS', {}).get('map_cells', {})
         pokemons = PGoApi.flatmap(lambda c: c.get('catchable_pokemons', []), map_cells)
         sleep(3 * random.random() + 5)
+        # cache map cells for api
+        self.map_cells = map_cells
         # catch first pokemon:
         origin = (self._posf[0], self._posf[1])
         pokemon_distances = [(pokemon, distance_in_meters(origin, (pokemon['latitude'], pokemon['longitude']))) for pokemon in pokemons]
