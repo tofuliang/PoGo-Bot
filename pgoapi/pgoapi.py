@@ -441,7 +441,7 @@ class PGoApi:
                                         try:
                                             atgym = len(last_pokemon['deployed_fort_id']) > 0
                                             if atgym:
-                                                self.log.info("Pokemon %s CP: %s not released because at gym", self.pokemon_names[str(last_pokemon['pokemon_id'])], pokemon['cp'])
+                                                self.log.info("Pokemon %s CP: %s not released because at gym", self.pokemon_names[str(last_pokemon['pokemon_id'])], last_pokemon['cp'])
                                         except:
                                             atgym = False
                                         if not atgym:
@@ -461,7 +461,6 @@ class PGoApi:
                                             self.log.debug("Releasing pokemon: %s", pokemon)
                                             self.log.info("Releasing pokemon: %s IV: %s", self.pokemon_names[str(pokemon['pokemon_id'])], pokemon_iv_percentage(pokemon))
                                             self.release_pokemon(pokemon_id=pokemon["id"])
-                                    last_pokemon = pokemon
 
         return self.call()
 
@@ -615,7 +614,7 @@ class PGoApi:
 
         return True
 
-    def get_GPX(self):
+    def set_GPX(self):
         if len(self.GPX_lat) == 0 and len(self.GPX_lon) == 0:
             try:
                 tree = ETXML.parse('GPX.xml')
@@ -623,13 +622,14 @@ class PGoApi:
                 trk = root.getiterator()
                 point_number = len(trk) - 1
                 self.log.debug(str(point_number) + 'points found' + '\nTrak location: ' + trk[2].text)
-                for i in range(4, point_number):
+                for i in range(5, point_number):
                     if str(trk[i].get('lat')) != str(None):
                         self.GPX_lat.append(str(trk[i].get('lat')))
                         self.GPX_lon.append(str(trk[i].get('lon')))
+                        return True
             except:
                 self.log.debug('GPX data not found or some error has occured')
-                pass
+                return False
 
     def main_loop(self):
         while True:

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="ISO-8859-1" standalone="no" ?>
+<gpx creator="WTracks" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.topografix.com/GPX/1/1" version="1.1" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
+<rte><name>prato della valle</name>
+  <rtept lat="45.398002534862236" lon="11.87470257282257"></rtept>
+  <rtept lat="45.39828489701381" lon="11.874842047691345"></rtept>
+  <rtept lat="45.39859386208781" lon="11.875024437904358"></rtept>
+  <rtept lat="45.398881517706954" lon="11.875137090682983"></rtept>
+  <rtept lat="45.39916384494626" lon="11.875324845314026"></rtept>
+  <rtept lat="45.399408882538744" lon="11.875410676002502"></rtept>
+  <rtept lat="45.39980307121853" lon="11.875512599945068"></rtept>
+  <rtept lat="45.400080067024014" lon="11.875786185264587"></rtept>
+  <rtept lat="45.40008539385313" lon="11.876075863838196"></rtept>
+  <rtept lat="45.400021471870716" lon="11.876408457756042"></rtept>
+  <rtept lat="45.39993091560518" lon="11.876746416091919"></rtept>
+  <rtept lat="45.39980839807377" lon="11.877014636993408"></rtept>
+  <rtept lat="45.399632611586384" lon="11.87722384929657"></rtept>
+  <rtept lat="45.39932365219233" lon="11.877551078796387"></rtept>
+  <rtept lat="45.39892946016781" lon="11.877830028533936"></rtept>
+  <rtept lat="45.39861516996166" lon="11.877931952476501"></rtept>
+  <rtept lat="45.39861516996166" lon="11.877513527870178"></rtept>
+  <rtept lat="45.39855657328917" lon="11.877127289772034"></rtept>
+  <rtept lat="45.39852993841799" lon="11.876692771911621"></rtept>
+  <rtept lat="45.39826891601575" lon="11.876606941223145"></rtept>
+  <rtept lat="45.398103778771166" lon="11.876606941223145"></rtept>
+  <rtept lat="45.39790135181298" lon="11.87670886516571"></rtept>
+  <rtept lat="45.39754443935707" lon="11.876789331436157"></rtept>
+  <rtept lat="45.39734201039509" lon="11.876783967018127"></rtept>
+  <rtept lat="45.397331356219105" lon="11.876413822174072"></rtept>
+  <rtept lat="45.39760303707915" lon="11.87572717666626"></rtept>
+  <rtept lat="45.39780013806195" lon="11.875442862510681"></rtept>
+  <rtept lat="45.397917332915" lon="11.875126361846924"></rtept>
+  <rtept lat="45.397959949164935" lon="11.87472939491272"></rtept>
+</rte></gpx>
+

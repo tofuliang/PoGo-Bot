@@ -7,6 +7,7 @@
 import os
 # import re
 import json
+import xml.etree.ElementTree as ETXML
 # import struct
 import logging
 # import requests
@@ -65,6 +66,18 @@ def init_config():
     return config
 
 
+def search_GPX(self):
+    try:
+        tree = ETXML.parse('GPX.xml')
+        root = tree.getroot()
+        trk = root.getiterator()
+        str(trk[4].get('lat'))
+        str(trk[4].get('lon'))
+        return [str(trk[4].get('lat')), str(trk[4].get('lon'))]
+    except:
+        return []
+
+
 def main():
     logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(module)10s] [%(levelname)5s] %(message)s')
     logging.getLogger("requests").setLevel(logging.WARNING)
@@ -80,17 +93,19 @@ def main():
         logging.getLogger("pgoapi").setLevel(logging.DEBUG)  # FIXME we need to work on what should be show normally and what should be shown durin debug
         logging.getLogger("rpc_api").setLevel(logging.DEBUG)
 
-    position = get_pos_by_name(config.location)
     if config.test:
         return
 
     pokemon_names = json.load(open("name_id.json"))
 
-    api = PGoApi(config.__dict__, pokemon_names, position)
+    if len(search_GPX()) > 0:
+        api = PGoApi(config.__dict__, pokemon_names, search_GPX())
+    else:
+        position = get_pos_by_name(config.location)
+        api = PGoApi(config.__dict__, pokemon_names, position)
 
     if not api.login(config.auth_service, config.username, config.password, config.cached):
         return
-    get_GPX()
     while True:
         try:
             api.main_loop()
