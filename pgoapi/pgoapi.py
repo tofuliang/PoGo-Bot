@@ -155,7 +155,7 @@ class PGoApi:
         self.RELEASE_DUPLICATES = config.get("RELEASE_DUPLICATE", 0)
         self.DUPLICATE_CP_FORGIVENESS = config.get("DUPLICATE_CP_FORGIVENESS", 0)
         self.MAX_BALL_TYPE = config.get("MAX_BALL_TYPE", 0)
-        self.SLOW_BUT_STEALTH = config.get("SLOW_BUT_STEALTH", 0)
+        self.RANDOM_SLEEP_TIME = config.get("RANDOM_SLEEP_TIME", 0)
         self._req_method_list = []
         self._heartbeat_number = 0
         self.pokemon_names = pokemon_names
