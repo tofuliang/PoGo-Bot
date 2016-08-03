@@ -432,38 +432,23 @@ class PGoApi:
             top_CP_pokemon = pokemons[0]
             self.log.debug('Excess pokemon: %s CP: %s IV: %s', self.pokemon_names[str(pokemon['pokemon_id'])], pokemon['cp'], pokemon_iv_percentage(pokemon))
             if self.RELEASE_DUPLICATES:
-                # release the pokemon also if it is the only one present (because it is not overthe IV and CP minimum)
-                if False: # change 'False' to 'len(pokemons) == 1' if you want to active it
-                    atgym = 'deployed_fort_id' in top_CP_pokemon
-                    if atgym:
-                        self.log.info("Pokemon %s CP: %s not released because at gym", self.pokemon_names[str(top_CP_pokemon['pokemon_id'])], top_CP_pokemon['cp'])
-                    if not atgym:
-                        self.log.debug("Releasing pokemon: %s", top_CP_pokemon)
-                        self.log.info("Releasing pokemon: %s IV: %s CP: %s", self.pokemon_names[str(top_CP_pokemon['pokemon_id'])], pokemon_iv_percentage(top_CP_pokemon), top_CP_pokemon['cp'])
-                        self.release_pokemon(pokemon_id=top_CP_pokemon["id"])
-                elif len(pokemons) > MIN_SIMILAR_POKEMON:
+                if len(pokemons) > MIN_SIMILAR_POKEMON:
                     # chose which pokemon should be released: first check IV, second CP
                     for pokemon in pokemons:
                         if pokemon_iv_percentage(pokemon) > pokemon_iv_percentage(top_CP_pokemon):
                             if top_CP_pokemon['cp'] * self.DUPLICATE_CP_FORGIVENESS < pokemon['cp']:
-                                try:
-                                    atgym = len(top_CP_pokemon['deployed_fort_id']) > 0
-                                    if atgym:
-                                        self.log.info("Pokemon %s CP: %s not released because at gym", self.pokemon_names[str(top_CP_pokemon['pokemon_id'])], top_CP_pokemon['cp'])
-                                except:
-                                    atgym = False
+                                atgym = 'deployed_fort_id' in pokemon
+                                if atgym:
+                                    self.log.info("Pokemon %s CP: %s not released because at gym", self.pokemon_names[str(top_CP_pokemon['pokemon_id'])], top_CP_pokemon['cp'])
                                 if not atgym:
                                     self.log.debug("Releasing pokemon: %s", top_CP_pokemon)
                                     self.log.info("Releasing pokemon: %s IV: %s CP: %s", self.pokemon_names[str(top_CP_pokemon['pokemon_id'])], pokemon_iv_percentage(top_CP_pokemon), top_CP_pokemon['cp'])
                                     self.release_pokemon(pokemon_id=top_CP_pokemon["id"])
                                     top_CP_pokemon = pokemon
                         elif top_CP_pokemon['cp'] * self.DUPLICATE_CP_FORGIVENESS > pokemon['cp']:
-                                try:
-                                    atgym = len(pokemon['deployed_fort_id']) > 0
-                                    if atgym:
-                                        self.log.info("Pokemon %s not released because at gym", self.pokemon_names[str(pokemon['pokemon_id'])])
-                                except:
-                                    atgym = False
+                                atgym = 'deployed_fort_id' in pokemon
+                                if atgym:
+                                    self.log.info("Pokemon %s not released because at gym", self.pokemon_names[str(pokemon['pokemon_id'])])
                                 if not atgym:
                                     self.log.debug("Releasing pokemon: %s", pokemon)
                                     self.log.info("Releasing pokemon: %s IV: %s CP: %s", self.pokemon_names[str(pokemon['pokemon_id'])], pokemon_iv_percentage(pokemon), pokemon['cp'])
