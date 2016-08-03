@@ -417,7 +417,7 @@ class PGoApi:
         for pokemons in caught_pokemon.values():
             pokemons = sorted(pokemons, lambda x, y: cmp(x['cp'], y['cp']), reverse=True)
             for pokemon in pokemons:
-                if pokemon['cp'] < self.KEEP_CP_OVER and pokemon_iv_percentage(pokemon) < self.MIN_KEEP_IV and pokemon['pokemon_id'] not in self.evolved_pokemon_ids:
+                if pokemon['cp'] < self.KEEP_CP_OVER and pokemon_iv_percentage(pokemon) < self.MIN_KEEP_IV and pokemon['pokemon_id'] not in self.evolved_pokemon_ids and (pokemon['pokemon_id'] + 1) not in self.evolved_pokemon_ids:
                     excess_pokemons[pokemon['pokemon_id']].append(pokemon)
                     if not self.RELEASE_DUPLICATES:
                         atgym = 'deployed_fort_id' in pokemon
