@@ -73,7 +73,7 @@ def search_GPX():
         trk = root.getiterator()
         str(trk[4].get('lat'))
         str(trk[4].get('lon'))
-        return [str(trk[4].get('lat')), str(trk[4].get('lon'))]
+        return [float(trk[4].get('lat')), float(trk[4].get('lon')), 20.0]
     except:
         return []
 
@@ -99,7 +99,8 @@ def main():
     pokemon_names = json.load(open("name_id.json"))
 
     if len(search_GPX()) > 0:
-        api = PGoApi(config.__dict__, pokemon_names, search_GPX())
+        position = search_GPX()
+        api = PGoApi(config.__dict__, pokemon_names, position)
     else:
         position = get_pos_by_name(config.location)
         api = PGoApi(config.__dict__, pokemon_names, position)

@@ -621,17 +621,18 @@ class PGoApi:
                 root = tree.getroot()
                 trk = root.getiterator()
                 point_number = len(trk) - 1
-                self.log.debug(str(point_number) + 'points found' + '\nTrak location: ' + trk[2].text)
+                self.log.info('\n\n' + str(point_number) + ' points found' + '\nTrak location: ' + trk[2].text + '\n')
                 for i in range(5, point_number):
                     if str(trk[i].get('lat')) != str(None):
-                        self.GPX_lat.append(str(trk[i].get('lat')))
-                        self.GPX_lon.append(str(trk[i].get('lon')))
+                        self.GPX_lat.append(float(trk[i].get('lat')))
+                        self.GPX_lon.append(float(trk[i].get('lon')))
                         return True
             except:
                 self.log.debug('GPX data not found or some error has occured')
                 return False
 
     def main_loop(self):
+        self.set_GPX()
         while True:
             self.heartbeat()
             sleep(1 * random.random() + 1) # If you want to make it faster, delete this line... would not recommend though
