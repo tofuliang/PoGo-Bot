@@ -439,7 +439,7 @@ class PGoApi:
                 # chose which pokemon should be released: first check IV, second CP
                 else:
                     for pokemon in pokemons:
-                        self.log.info('Excess pokemon: %s CP: %s IV: %s', self.pokemon_names[str(pokemon['pokemon_id'])], pokemon['cp'], pokemon_iv_percentage(pokemon))
+                        self.log.debug('Excess pokemon: %s CP: %s IV: %s', self.pokemon_names[str(pokemon['pokemon_id'])], pokemon['cp'], pokemon_iv_percentage(pokemon))
                         if pokemon_iv_percentage(pokemon) > pokemon_iv_percentage(top_CP_pokemon):
                             if top_CP_pokemon['cp'] * self.DUPLICATE_CP_FORGIVENESS < pokemon['cp']:
                                 try:
