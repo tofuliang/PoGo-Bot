@@ -419,6 +419,14 @@ class PGoApi:
             for pokemon in pokemons:
                 if pokemon['cp'] < self.KEEP_CP_OVER and pokemon_iv_percentage(pokemon) < self.MIN_KEEP_IV and pokemon['pokemon_id'] not in self.evolved_pokemon_ids:
                     excess_pokemons[pokemon['pokemon_id']].append(pokemon)
+                    if not self.RELEASE_DUPLICATES:
+                        atgym = 'deployed_fort_id' in pokemon
+                        if atgym:
+                            self.log.info("Pokemon %s CP: %s not released because at gym", self.pokemon_names[str(pokemon['pokemon_id'])], pokemon['cp'])
+                        if not atgym:
+                            self.log.debug("Releasing pokemon: %s", pokemon)
+                            self.log.info("Releasing pokemon: %s IV: %s CP: %s", self.pokemon_names[str(pokemon['pokemon_id'])], pokemon_iv_percentage(pokemon), pokemon['cp'])
+                            self.release_pokemon(pokemon_id=pokemon["id"])
         for pokemons_id in excess_pokemons.keys():
             pokemons = excess_pokemons.pop(pokemons_id)
             top_CP_pokemon = pokemons[0]
