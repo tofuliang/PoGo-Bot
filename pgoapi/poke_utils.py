@@ -42,17 +42,12 @@ def get_inventory_data(res, poke_names):
 def get_incubators_stat(res):
     inventory_delta = res['responses']['GET_INVENTORY'].get('inventory_delta', {})
     inventory_items = inventory_delta.get('inventory_items', [])
-    inventory_items_dict_list = map(lambda x: x.get('inventory_item_data', {}), inventory_items)
-    inventory_items_incubators = map(lambda x: x.get('egg_incubators', {}).get('egg_incubator', {}), inventory_items_dict_list)
-    inventory_items_incubator_list = reduce(lambda x, y: x + y, filter(lambda x: len(x) > 0, inventory_items_incubators))
-    player_stats = filter(lambda x: len(x) > 0, map(lambda x: x.get('player_stats', {}), inventory_items_dict_list))
-    if len(player_stats) > 0:
-        km_walked = player_stats[0].get('km_walked', 'None')
-    else:
-        km_walked = 'None'
+    inventory_items_incubators = map(lambda x: x.get('inventory_item_data', {}), inventory_items)
+    inventory_items_dict_list = map(lambda x: x.get('egg_incubators', {}), inventory_items_incubators)
+    inventory_items_incubator_list = filter(lambda x: 'egg_incubator' in x and 'target_km_walked' in x, inventory_items_dict_list)
     if inventory_items_incubator_list:
         return (os.linesep.join(map(lambda x: "Incubator {0:.2f} km, walked {1:.2f} km".format(
-            x['target_km_walked'],
-            km_walked), inventory_items_incubator_list)))
+            x['egg_incubator']['target_km_walked'],
+            x['egg_incubator']['start_km_walked']), inventory_items_incubator_list)))
     else:
         return 'No incubators'
