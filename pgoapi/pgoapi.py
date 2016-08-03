@@ -21,7 +21,7 @@ import json
 from pgoapi.location import distance_in_meters, get_increments, get_neighbors, get_route, filtered_forts
 # import pgoapi.protos.POGOProtos.Enums_pb2 as RpcEnum
 from pgoapi.poke_utils import pokemon_iv_percentage, get_inventory_data, get_pokemon_num, get_incubators_stat, incubators_stat_str, \
-        get_eggs_stat
+    get_eggs_stat
 from time import sleep
 from collections import defaultdict
 import os.path
@@ -623,16 +623,14 @@ class PGoApi:
                         del(empty_incubator_list[incubator_index])
         return hatching_eggs_count
 
-
     def hatch_egg(self, incubator_id, egg_id):
-        response = self.use_item_egg_incubator(item_id = incubator_id, pokemon_id = egg_id).call()
+        response = self.use_item_egg_incubator(item_id=incubator_id, pokemon_id=egg_id).call()
         result = response.get('responses', {}).get('USE_ITEM_EGG_INCUBATOR', {})
         if len(result) == 0:
             return False
         if "result" in result:
             self.log.debug("Result: %d", result['result'])
         return result.get('result', 0) == 1
-
 
     def main_loop(self):
         while True:
