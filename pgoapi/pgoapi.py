@@ -420,17 +420,17 @@ class PGoApi:
                 if pokemon['cp'] < self.KEEP_CP_OVER and pokemon_iv_percentage(pokemon) < self.MIN_KEEP_IV and pokemon['pokemon_id'] not in self.evolved_pokemon_ids and (pokemon['pokemon_id'] + 1) not in self.evolved_pokemon_ids:
                     excess_pokemons[pokemon['pokemon_id']].append(pokemon)
                     self.log.debug('Excess pokemon: %s CP: %s IV: %s', self.pokemon_names[str(pokemon['pokemon_id'])], pokemon['cp'], pokemon_iv_percentage(pokemon))
-                    if not self.RELEASE_DUPLICATES and len(pokemons) > 1:
-                        atgym = 'deployed_fort_id' in pokemon
-                        if atgym:
-                            self.log.info("Pokemon %s CP: %s not released because at gym", self.pokemon_names[str(pokemon['pokemon_id'])], pokemon['cp'])
-                        if not atgym:
-                            self.log.debug("Releasing pokemon: %s", pokemon)
-                            self.log.info("Releasing pokemon: %s IV: %s CP: %s", self.pokemon_names[str(pokemon['pokemon_id'])], pokemon_iv_percentage(pokemon), pokemon['cp'])
-                            self.release_pokemon(pokemon_id=pokemon["id"])
         for pokemons_id in excess_pokemons.keys():
             pokemons = excess_pokemons.pop(pokemons_id)
             top_CP_pokemon = pokemons[0]
+            if not self.RELEASE_DUPLICATES and len(pokemons) > 1:
+                atgym = 'deployed_fort_id' in pokemon
+                if atgym:
+                    self.log.info("Pokemon %s CP: %s not released because at gym", self.pokemon_names[str(pokemon['pokemon_id'])], pokemon['cp'])
+                if not atgym:
+                    self.log.debug("Releasing pokemon: %s", pokemon)
+                    self.log.info("Releasing pokemon: %s IV: %s CP: %s", self.pokemon_names[str(pokemon['pokemon_id'])], pokemon_iv_percentage(pokemon), pokemon['cp'])
+                    self.release_pokemon(pokemon_id=pokemon["id"])
             if self.RELEASE_DUPLICATES:
                 if len(pokemons) > MIN_SIMILAR_POKEMON:
                     # chose which pokemon should be released: first check IV, second CP
