@@ -6,7 +6,7 @@ import logging
 from itertools import chain, imap
 
 # import requests
-from .utilities import f2i
+# from .utilities import f2i
 # from termcolor import colored # get color logging soon
 from pgoapi.protos.POGOProtos.Networking.Requests_pb2 import RequestType
 from pgoapi.protos.POGOProtos import Inventory_pb2 as Inventory
@@ -139,7 +139,7 @@ class PoGObot:
 
     def __init__(self, config, pokemon_names, start_pos):
 
-        self.api = PGoApi(provider=config.get("auth_service"), username=config.get("username"), password=config.get("password"), start_pos)
+        self.api = PGoApi(provider=config.get("auth_service"), username=config.get("username"), password=config.get("password"), position_lat=start_pos[0], position_lng=start_pos[1], position_alt=start_pos[2])
         self.log = logging.getLogger(__name__)
         self._start_pos = start_pos
         self._walk_count = 1
@@ -492,7 +492,8 @@ class PoGObot:
                 else:
                     sleep(2)
         return False
-'''
+
+    '''
     def login(self, provider, username, password, cached=False):
         if not isinstance(username, basestring) or not isinstance(password, basestring):
             raise AuthException("Username/password not correctly specified")
@@ -550,7 +551,8 @@ class PoGObot:
             sleep(3 * random.random() + 10)
 
         return True
-'''
+    '''
+
     def set_GPX(self):
         if len(self.GPX_lat) == 0 and len(self.GPX_lon) == 0:
             try:

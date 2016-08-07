@@ -32,7 +32,7 @@ import json
 import logging
 import requests
 
-from urllib.parse import parse_qs
+from urlparse import parse_qs
 
 from pgoapi.auth import Auth
 from pgoapi.utilities import get_time
