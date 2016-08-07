@@ -413,42 +413,46 @@ class PGoApi:
                                 self.evolved_pokemon_ids.append(pokemon['pokemon_id'])
                                 if self.SLOW_BUT_STEALTH:
                                     sleep(3 * random.random() + 5)
-        if self.RELEASE_DUPLICATES:
-            for pokemons in caught_pokemon.values():
+        excess_pokemons = defaultdict(list)
+        for pokemons in caught_pokemon.values():
+            pokemons = sorted(pokemons, lambda x, y: cmp(x['cp'], y['cp']), reverse=True)
+            for pokemon in pokemons:
+                if pokemon['cp'] < self.KEEP_CP_OVER and pokemon_iv_percentage(pokemon) < self.MIN_KEEP_IV and pokemon['pokemon_id'] not in self.evolved_pokemon_ids and (pokemon['pokemon_id'] + 1) not in self.evolved_pokemon_ids:
+                    excess_pokemons[pokemon['pokemon_id']].append(pokemon)
+                    self.log.debug('Excess pokemon: %s CP: %s IV: %s', self.pokemon_names[str(pokemon['pokemon_id'])], pokemon['cp'], pokemon_iv_percentage(pokemon))
+        for pokemons_id in excess_pokemons.keys():
+            pokemons = excess_pokemons.pop(pokemons_id)
+            top_CP_pokemon = pokemons[0]
+            if not self.RELEASE_DUPLICATES and len(pokemons) > 1:
+                atgym = 'deployed_fort_id' in pokemon
+                if atgym:
+                    self.log.info("Pokemon %s CP: %s not released because at gym", self.pokemon_names[str(pokemon['pokemon_id'])], pokemon['cp'])
+                if not atgym:
+                    self.log.debug("Releasing pokemon: %s", pokemon)
+                    self.log.info("Releasing pokemon: %s IV: %s CP: %s", self.pokemon_names[str(pokemon['pokemon_id'])], pokemon_iv_percentage(pokemon), pokemon['cp'])
+                    self.release_pokemon(pokemon_id=pokemon["id"])
+            if self.RELEASE_DUPLICATES:
                 if len(pokemons) > MIN_SIMILAR_POKEMON:
-                    pokemons = sorted(pokemons, lambda x, y: cmp(x['cp'], y['cp']), reverse=True)
-                    last_pokemon = pokemons[0]
+                    # chose which pokemon should be released: first check IV, second CP
                     for pokemon in pokemons:
-                        self.log.debug('Excess pokemon: %s CP: %s', self.pokemon_names[str(pokemon['pokemon_id'])], pokemon['cp'])
-                        if pokemon['pokemon_id'] not in self.evolved_pokemon_ids:
-                            if self.pokemon_names[str(pokemon['pokemon_id'])] == self.pokemon_names[str(last_pokemon['pokemon_id'])]:
-                                # Compare two pokemon if the larger IV pokemon has less then DUPLICATE_CP_FORGIVENESS times CP keep it
-                                if pokemon_iv_percentage(pokemon) > pokemon_iv_percentage(last_pokemon):
-                                    if last_pokemon['cp'] * self.DUPLICATE_CP_FORGIVENESS < pokemon['cp']:
-                                        try:
-                                            atgym = len(last_pokemon['deployed_fort_id']) > 0
-                                            if atgym:
-                                                self.log.info("Pokemon %s CP: %s not released because at gym", self.pokemon_names[str(last_pokemon['pokemon_id'])], last_pokemon['cp'])
-                                        except:
-                                            atgym = False
-                                        if not atgym:
-                                            self.log.debug("Releasing pokemon: %s", last_pokemon)
-                                            self.log.info("Releasing pokemon: %s IV: %s", self.pokemon_names[str(last_pokemon['pokemon_id'])], pokemon_iv_percentage(last_pokemon))
-                                            self.release_pokemon(pokemon_id=last_pokemon["id"])
-                                    last_pokemon = pokemon
-                                else:
-                                    if last_pokemon['cp'] * self.DUPLICATE_CP_FORGIVENESS > pokemon['cp']:
-                                        try:
-                                            atgym = len(pokemon['deployed_fort_id']) > 0
-                                            if atgym:
-                                                self.log.info("Pokemon %s not released because at gym", self.pokemon_names[str(pokemon['pokemon_id'])])
-                                        except:
-                                            atgym = False
-                                        if not atgym:
-                                            self.log.debug("Releasing pokemon: %s", pokemon)
-                                            self.log.info("Releasing pokemon: %s IV: %s", self.pokemon_names[str(pokemon['pokemon_id'])], pokemon_iv_percentage(pokemon))
-                                            self.release_pokemon(pokemon_id=pokemon["id"])
-
+                        if pokemon_iv_percentage(pokemon) > pokemon_iv_percentage(top_CP_pokemon):
+                            if top_CP_pokemon['cp'] * self.DUPLICATE_CP_FORGIVENESS < pokemon['cp']:
+                                atgym = 'deployed_fort_id' in pokemon
+                                if atgym:
+                                    self.log.info("Pokemon %s CP: %s not released because at gym", self.pokemon_names[str(top_CP_pokemon['pokemon_id'])], top_CP_pokemon['cp'])
+                                if not atgym:
+                                    self.log.debug("Releasing pokemon: %s", top_CP_pokemon)
+                                    self.log.info("Releasing pokemon: %s IV: %s CP: %s", self.pokemon_names[str(top_CP_pokemon['pokemon_id'])], pokemon_iv_percentage(top_CP_pokemon), top_CP_pokemon['cp'])
+                                    self.release_pokemon(pokemon_id=top_CP_pokemon["id"])
+                                    top_CP_pokemon = pokemon
+                        elif top_CP_pokemon['cp'] * self.DUPLICATE_CP_FORGIVENESS > pokemon['cp']:
+                                atgym = 'deployed_fort_id' in pokemon
+                                if atgym:
+                                    self.log.info("Pokemon %s not released because at gym", self.pokemon_names[str(pokemon['pokemon_id'])])
+                                if not atgym:
+                                    self.log.debug("Releasing pokemon: %s", pokemon)
+                                    self.log.info("Releasing pokemon: %s IV: %s CP: %s", self.pokemon_names[str(pokemon['pokemon_id'])], pokemon_iv_percentage(pokemon), pokemon['cp'])
+                                    self.release_pokemon(pokemon_id=pokemon["id"])
         return self.call()
 
     def disk_encounter_pokemon(self, lureinfo):
