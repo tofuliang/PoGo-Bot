@@ -21,7 +21,8 @@ import json
 import xml.etree.ElementTree as ETXML
 from pgoapi.location import distance_in_meters, get_increments, get_neighbors, get_route, filtered_forts
 # import pgoapi.protos.POGOProtos.Enums_pb2 as RpcEnum
-from pgoapi.poke_utils import pokemon_iv_percentage, get_inventory_data, get_pokemon_num, get_incubators_stat
+from pgoapi.poke_utils import pokemon_iv_percentage, get_inventory_data, get_pokemon_num, get_incubators_stat, incubators_stat_str, \
+    get_eggs_stat
 from time import sleep
 from collections import defaultdict
 import os.path
@@ -159,10 +160,12 @@ class PGoApi:
         self.DUPLICATE_CP_FORGIVENESS = config.get("DUPLICATE_CP_FORGIVENESS", 0)
         self.MAX_BALL_TYPE = config.get("MAX_BALL_TYPE", 0)
         self.SLOW_BUT_STEALTH = config.get("SLOW_BUT_STEALTH", 0)
+        self.AUTO_HATCHING = config.get("AUTO_HATCHING", False)
         self._req_method_list = []
         self._heartbeat_number = 0
         self.pokemon_names = pokemon_names
         self.pokeballs = [0, 0, 0, 0]  # pokeball counts. set to 0 to force atleast one fort check  before trying to capture pokemon
+        self.map_cells = dict()
         self.min_item_counts = dict(
             ((getattr(Inventory, key), value) for key, value in config.get('MIN_ITEM_COUNTS', {}).iteritems())
         )
@@ -206,6 +209,9 @@ class PGoApi:
 
     def get_position(self):
         return (self._position_lat, self._position_lng, self._position_alt)
+
+    def get_position_raw(self):
+        return self._posf
 
     def set_position(self, lat, lng, alt):
         self.log.debug('Set Position - Lat: %s Long: %s Alt: %s', lat, lng, alt)
@@ -267,7 +273,7 @@ class PGoApi:
             # new inventory data has just been saved, clearing evolved pokemons list
             self.evolved_pokemon_ids = []
             # create string with pokemon list, add users info and print everything
-            self.log.info("\n\nList of Pokemon:\n" + get_inventory_data(res, self.pokemon_names) + "\nTotal Pokemon count: " + str(get_pokemon_num(res)) + "\nEgg Hatching status: " + get_incubators_stat(res) + "\n")
+            self.log.info("\n\nList of Pokemon:\n" + get_inventory_data(res, self.pokemon_names) + "\nTotal Pokemon count: " + str(get_pokemon_num(res)) + "\nEgg Hatching status: " + incubators_stat_str(res) + "\n")
             self.log.info("\n\n Username: %s, Lvl: %s, XP: %s/%s \n Currencies: %s \n", player_data.get('username', 'NA'), player_stats.get('level', 'NA'), player_stats.get('experience', 'NA'), player_stats.get('next_level_xp', 'NA'), currency_data)
             self.log.debug(self.cleanup_inventory(res['responses']['GET_INVENTORY']['inventory_delta']['inventory_items']))
         self._heartbeat_number += 1
@@ -292,6 +298,10 @@ class PGoApi:
                             sleep(3 * random.random() + 1) # If you want to make it faster, delete this line... would not recommend though
                         else:
                             sleep(1)
+        if self.AUTO_HATCHING:
+            hatching_eggs_count = self.attempt_hatch_eggs()
+            if hatching_eggs_count > 0:
+                self.log.info("Start hatching %d eggs", hatching_eggs_count)
 
     # this is in charge of spinning a pokestop
     def spin_near_fort(self):
@@ -349,6 +359,8 @@ class PGoApi:
         map_cells = self.nearby_map_objects().get('responses', {}).get('GET_MAP_OBJECTS', {}).get('map_cells', {})
         pokemons = PGoApi.flatmap(lambda c: c.get('catchable_pokemons', []), map_cells)
         sleep(3 * random.random() + 5)
+        # cache map cells for api
+        self.map_cells = map_cells
         # catch first pokemon:
         origin = (self._posf[0], self._posf[1])
         pokemon_distances = [(pokemon, distance_in_meters(origin, (pokemon['latitude'], pokemon['longitude']))) for pokemon in pokemons]
@@ -419,49 +431,52 @@ class PGoApi:
                 for pokemon in pokemons:
                     if pokemon['pokemon_id'] in CANDY_NEEDED_TO_EVOLVE:
                         for inventory_item in inventory_items:
-                            if "pokemon_family" in inventory_item['inventory_item_data'] and (inventory_item['inventory_item_data']['pokemon_family']['family_id'] == pokemon['pokemon_id'] or inventory_item['inventory_item_data']['pokemon_family']['family_id'] == (pokemon['pokemon_id'] - 1)) and inventory_item['inventory_item_data']['pokemon_family']['candy'] > CANDY_NEEDED_TO_EVOLVE[pokemon['pokemon_id']]:  # Check to see if the pokemon is able to evolve or not, supports t2 evolutions
-                                if pokemon['pokemon_id'] not in self.evolved_pokemon_ids:
-                                    self.log.info("Evolving pokemon: %s", self.pokemon_names[str(pokemon['pokemon_id'])])
-                                    self.evolve_pokemon(pokemon_id=pokemon['id'])  # quick press ctrl + c to stop the evolution
-                                    self.evolved_pokemon_ids.append(pokemon['pokemon_id'])
-                                    if self.SLOW_BUT_STEALTH:
-                                        sleep(3 * random.random() + 30)
-        if self.RELEASE_DUPLICATES:
-            for pokemons in caught_pokemon.values():
+                            if "pokemon_family" in inventory_item['inventory_item_data'] and (inventory_item['inventory_item_data']['pokemon_family']['family_id'] == pokemon['pokemon_id'] or inventory_item['inventory_item_data']['pokemon_family']['family_id'] == (pokemon['pokemon_id'] - 1)) and inventory_item['inventory_item_data']['pokemon_family'].get('candy', 0) > CANDY_NEEDED_TO_EVOLVE[pokemon['pokemon_id']] and pokemon['pokemon_id'] not in self.evolved_pokemon_ids:
+                                self.log.info("Evolving pokemon: %s", self.pokemon_names[str(pokemon['pokemon_id'])])
+                                self.evolve_pokemon(pokemon_id=pokemon['id'])  # quick press ctrl + c to stop the evolution
+                                self.evolved_pokemon_ids.append(pokemon['pokemon_id'])
+                                if self.SLOW_BUT_STEALTH:
+                                    sleep(3 * random.random() + 5)
+        excess_pokemons = defaultdict(list)
+        for pokemons in caught_pokemon.values():
+            pokemons = sorted(pokemons, lambda x, y: cmp(x['cp'], y['cp']), reverse=True)
+            for pokemon in pokemons:
+                if pokemon['cp'] < self.KEEP_CP_OVER and pokemon_iv_percentage(pokemon) < self.MIN_KEEP_IV and pokemon['pokemon_id'] not in self.evolved_pokemon_ids and (pokemon['pokemon_id'] + 1) not in self.evolved_pokemon_ids:
+                    excess_pokemons[pokemon['pokemon_id']].append(pokemon)
+                    self.log.debug('Excess pokemon: %s CP: %s IV: %s', self.pokemon_names[str(pokemon['pokemon_id'])], pokemon['cp'], pokemon_iv_percentage(pokemon))
+        for pokemons_id in excess_pokemons.keys():
+            pokemons = excess_pokemons.pop(pokemons_id)
+            top_CP_pokemon = pokemons[0]
+            if not self.RELEASE_DUPLICATES and len(pokemons) > 1:
+                atgym = 'deployed_fort_id' in pokemon
+                if atgym:
+                    self.log.info("Pokemon %s CP: %s not released because at gym", self.pokemon_names[str(pokemon['pokemon_id'])], pokemon['cp'])
+                if not atgym:
+                    self.log.debug("Releasing pokemon: %s", pokemon)
+                    self.log.info("Releasing pokemon: %s IV: %s CP: %s", self.pokemon_names[str(pokemon['pokemon_id'])], pokemon_iv_percentage(pokemon), pokemon['cp'])
+                    self.release_pokemon(pokemon_id=pokemon["id"])
+            if self.RELEASE_DUPLICATES:
                 if len(pokemons) > MIN_SIMILAR_POKEMON:
-                    pokemons = sorted(pokemons, lambda x, y: cmp(x['cp'], y['cp']), reverse=True)
-                    last_pokemon = pokemons[0]
+                    # chose which pokemon should be released: first check IV, second CP
                     for pokemon in pokemons:
-                        self.log.debug('Excess pokemon: %s CP: %s', self.pokemon_names[str(pokemon['pokemon_id'])], pokemon['cp'])
-                        if pokemon['pokemon_id'] not in self.evolved_pokemon_ids:
-                            if self.pokemon_names[str(pokemon['pokemon_id'])] == self.pokemon_names[str(last_pokemon['pokemon_id'])]:
-                                # Compare two pokemon if the larger IV pokemon has less then DUPLICATE_CP_FORGIVENESS times CP keep it
-                                if pokemon_iv_percentage(pokemon) > pokemon_iv_percentage(last_pokemon):
-                                    if pokemon['cp'] * self.DUPLICATE_CP_FORGIVENESS < last_pokemon['cp']:
-                                        try:
-                                            atgym = len(last_pokemon['deployed_fort_id']) > 0
-                                            if atgym:
-                                                self.log.info("Pokemon %s CP: %s not released because at gym", self.pokemon_names[str(last_pokemon['pokemon_id'])], last_pokemon['cp'])
-                                        except:
-                                            atgym = False
-                                        if not atgym:
-                                            self.log.debug("Releasing pokemon: %s", last_pokemon)
-                                            self.log.info("Releasing pokemon: %s IV: %s", self.pokemon_names[str(last_pokemon['pokemon_id'])], pokemon_iv_percentage(last_pokemon))
-                                            self.release_pokemon(pokemon_id=last_pokemon["id"])
-                                    last_pokemon = pokemon
-                                else:
-                                    if last_pokemon['cp'] * self.DUPLICATE_CP_FORGIVENESS > pokemon['cp']:
-                                        try:
-                                            atgym = len(pokemon['deployed_fort_id']) > 0
-                                            if atgym:
-                                                self.log.info("Pokemon %s not released because at gym", self.pokemon_names[str(pokemon['pokemon_id'])])
-                                        except:
-                                            atgym = False
-                                        if not atgym:
-                                            self.log.debug("Releasing pokemon: %s", pokemon)
-                                            self.log.info("Releasing pokemon: %s IV: %s", self.pokemon_names[str(pokemon['pokemon_id'])], pokemon_iv_percentage(pokemon))
-                                            self.release_pokemon(pokemon_id=pokemon["id"])
-
+                        if pokemon_iv_percentage(pokemon) > pokemon_iv_percentage(top_CP_pokemon):
+                            if top_CP_pokemon['cp'] * self.DUPLICATE_CP_FORGIVENESS < pokemon['cp']:
+                                atgym = 'deployed_fort_id' in pokemon
+                                if atgym:
+                                    self.log.info("Pokemon %s CP: %s not released because at gym", self.pokemon_names[str(top_CP_pokemon['pokemon_id'])], top_CP_pokemon['cp'])
+                                if not atgym:
+                                    self.log.debug("Releasing pokemon: %s", top_CP_pokemon)
+                                    self.log.info("Releasing pokemon: %s IV: %s CP: %s", self.pokemon_names[str(top_CP_pokemon['pokemon_id'])], pokemon_iv_percentage(top_CP_pokemon), top_CP_pokemon['cp'])
+                                    self.release_pokemon(pokemon_id=top_CP_pokemon["id"])
+                                    top_CP_pokemon = pokemon
+                        elif top_CP_pokemon['cp'] * self.DUPLICATE_CP_FORGIVENESS > pokemon['cp']:
+                                atgym = 'deployed_fort_id' in pokemon
+                                if atgym:
+                                    self.log.info("Pokemon %s not released because at gym", self.pokemon_names[str(pokemon['pokemon_id'])])
+                                if not atgym:
+                                    self.log.debug("Releasing pokemon: %s", pokemon)
+                                    self.log.info("Releasing pokemon: %s IV: %s CP: %s", self.pokemon_names[str(pokemon['pokemon_id'])], pokemon_iv_percentage(pokemon), pokemon['cp'])
+                                    self.release_pokemon(pokemon_id=pokemon["id"])
         return self.call()
 
     def disk_encounter_pokemon(self, lureinfo):
@@ -630,6 +645,37 @@ class PGoApi:
             except:
                 self.log.debug('GPX data not found or some error has occured')
                 return False
+
+    def attempt_hatch_eggs(self, res=None):
+        self.get_hatched_eggs().call()
+        if not res:
+            res = self.get_inventory().call()
+        hatching_incubator_list, empty_incubator_list = get_incubators_stat(res)
+        hatching_eggs, immature_eggs = get_eggs_stat(res)
+        hatching_eggs_count = 0
+        for immature_egg in immature_eggs:
+            egg_id = immature_egg['pokemon_data']['id']
+            if len(empty_incubator_list) > 0:
+                # Always use first incubator.
+                incubator_index = 0
+                incubator_id = empty_incubator_list[incubator_index]['id']
+                uses_remaining = empty_incubator_list[incubator_index].get('uses_remaining', 0) - 1
+                if self.hatch_egg(incubator_id, egg_id):
+                    hatching_eggs_count += 1
+                    # Update incubator manually to save api call().
+                    empty_incubator_list[incubator_index]['uses_remaining'] = uses_remaining
+                    if uses_remaining <= 0:
+                        del(empty_incubator_list[incubator_index])
+        return hatching_eggs_count
+
+    def hatch_egg(self, incubator_id, egg_id):
+        response = self.use_item_egg_incubator(item_id=incubator_id, pokemon_id=egg_id).call()
+        result = response.get('responses', {}).get('USE_ITEM_EGG_INCUBATOR', {})
+        if len(result) == 0:
+            return False
+        if "result" in result:
+            self.log.debug("Result: %d", result['result'])
+        return result.get('result', 0) == 1
 
     def main_loop(self):
         self.set_GPX()
