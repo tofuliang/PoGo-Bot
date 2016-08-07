@@ -143,6 +143,7 @@ class PoGObot:
         self.api = PGoApi()
         self.log = logging.getLogger(__name__)
         self._start_pos = start_pos
+        self._posf = (0,0,0)
         self._walk_count = 1
         self.config = config
         self.evolved_pokemon_ids = []
@@ -166,14 +167,10 @@ class PoGObot:
         )
 
     def heartbeat(self):
-        self.api.get_player()
         if self._heartbeat_number % 10 == 0 or self._heartbeat_number == 0:  # every 10 heartbeats do a inventory check
-            self.check_awarded_badges()
-            self.get_inventory()
-        res = self.call()
-        if res.get("direction", -1) == 102:
-            self.log.error("There were a problem responses for api call: %s. Restarting!!!", res)
-            raise AuthException("Token probably expired?")
+            # self.api.check_awarded_badges() commented because too close to the next request
+            res = self.api.get_inventory()
+            sleep(random.random() + 5)
         self.log.debug('Heartbeat dictionary: \n\r{}'.format(json.dumps(res, indent=2)))
         if 'GET_PLAYER' in res['responses']:
             player_data = res['responses'].get('GET_PLAYER', {}).get('player_data', {})
@@ -197,8 +194,10 @@ class PoGObot:
             self.evolved_pokemon_ids = []
             # create string with pokemon list, add users info and print everything
             self.log.info("\n\nList of Pokemon:\n" + get_inventory_data(res, self.pokemon_names) + "\nTotal Pokemon count: " + str(get_pokemon_num(res)) + "\nEgg Hatching status: " + incubators_stat_str(res) + "\n")
-            self.log.info("\n\n Username: %s, Lvl: %s, XP: %s/%s \n Currencies: %s \n", player_data.get('username', 'NA'), player_stats.get('level', 'NA'), player_stats.get('experience', 'NA'), player_stats.get('next_level_xp', 'NA'), currency_data)
-            self.log.debug(self.cleanup_inventory(res['responses']['GET_INVENTORY']['inventory_delta']['inventory_items']))
+            if 'GET_PLAYER' in res['responses']:
+                self.log.info("\n\n Username: %s, Lvl: %s, XP: %s/%s \n Currencies: %s \n", player_data.get('username', 'NA'), player_stats.get('level', 'NA'), player_stats.get('experience', 'NA'), player_stats.get('next_level_xp', 'NA'), currency_data)
+            self.log.info("Cleaning up inventory")
+            self.cleanup_inventory(res['responses']['GET_INVENTORY']['inventory_delta']['inventory_items'])
         self._heartbeat_number += 1
         return res
 
@@ -240,11 +239,11 @@ class PoGObot:
                 sleep(1 * random.random() + 1)
                 for fort in available_forts:
                     if fort[1] < 10:
-                        res = self.fort_search(fort_id=fort['id'], fort_latitude=fort['latitude'], fort_longitude=fort['longitude'], player_latitude=self.GPX_lat[self._walk_count], player_longitude=self.GPX_lon[self._walk_count]).call()['responses']['FORT_SEARCH']
+                        res = self.api.fort_search(fort_id=fort['id'], fort_latitude=fort['latitude'], fort_longitude=fort['longitude'], player_latitude=self.GPX_lat[self._walk_count], player_longitude=self.GPX_lon[self._walk_count]).call()['responses']['FORT_SEARCH']
                         if 'lure_info' in fort:
                             encounter_id = fort['lure_info']['encounter_id']
                             fort_id = fort['lure_info']['fort_id']
-                            resp = self.disk_encounter(encounter_id=encounter_id, fort_id=fort_id, player_latitude=self.GPX_lat[self._walk_count], player_longitude=self.GPX_lon[self._walk_count]).call()['responses']['DISK_ENCOUNTER']
+                            resp = self.api.disk_encounter(encounter_id=encounter_id, fort_id=fort_id, player_latitude=self.GPX_lat[self._walk_count], player_longitude=self.GPX_lon[self._walk_count]).call()['responses']['DISK_ENCOUNTER']
                             if self.pokeballs[1] > 9 and self.pokeballs[2] > 4 and self.pokeballs[3] > 4:
                                 self.disk_encounter_pokemon(fort['lure_info'])
             else:
@@ -262,13 +261,13 @@ class PoGObot:
                 self.log.info("Walking to fort at %s,%s", fort['latitude'], fort['longitude'])
                 self.walk_to((fort['latitude'], fort['longitude']))
                 position = self._posf # FIXME ?
-                res = self.fort_search(fort_id=fort['id'], fort_latitude=fort['latitude'], fort_longitude=fort['longitude'], player_latitude=position[0], player_longitude=position[1]).call()['responses']['FORT_SEARCH']
+                res = self.api.fort_search(fort_id=fort['id'], fort_latitude=fort['latitude'], fort_longitude=fort['longitude'], player_latitude=position[0], player_longitude=position[1]).call()['responses']['FORT_SEARCH']
                 self.log.debug("Fort spinned: %s", res)
                 if 'lure_info' in fort:
                     encounter_id = fort['lure_info']['encounter_id']
                     fort_id = fort['lure_info']['fort_id']
                     position = self._posf
-                    resp = self.disk_encounter(encounter_id=encounter_id, fort_id=fort_id, player_latitude=position[0], player_longitude=position[1]).call()['responses']['DISK_ENCOUNTER']
+                    resp = self.api.disk_encounter(encounter_id=encounter_id, fort_id=fort_id, player_latitude=position[0], player_longitude=position[1]).call()['responses']['DISK_ENCOUNTER']
                     self.log.debug('Encounter response is: %s', resp)
                     if self.pokeballs[1] > 9 and self.pokeballs[2] > 4 and self.pokeballs[3] > 4:
                         self.disk_encounter_pokemon(fort['lure_info'])
@@ -298,10 +297,10 @@ class PoGObot:
         return False
 
     def nearby_map_objects(self):
-        position = self.api.get_position()
-        cell_ids = util.get_cell_ids(lat=position[0], long=position[1], radius=700)
+        self._posf = self.api.get_position()
+        cell_ids = util.get_cell_ids(lat=self._posf[0], long=self._posf[1], radius=700)
         timestamps = [0,] * len(cell_ids)
-        return self.api.get_map_objects(latitude=position[0], longitude=position[1], since_timestamp_ms=timestamps, cell_id=cell_ids)
+        return self.api.get_map_objects(latitude=self._posf[0], longitude=self._posf[1], since_timestamp_ms=timestamps, cell_id=cell_ids)
 
     def attempt_catch(self, encounter_id, spawn_point_id, ball_type):
         r = self.api.catch_pokemon(
@@ -320,7 +319,7 @@ class PoGObot:
 
     def cleanup_inventory(self, inventory_items=None):
         if not inventory_items:
-            inventory_items = self.get_inventory().call()['responses']['GET_INVENTORY']['inventory_delta']['inventory_items']
+            inventory_items = self.api.get_inventory().call()['responses']['GET_INVENTORY']['inventory_delta']['inventory_items']
             sleep(3 * random.random() + 5)
         all_actual_items = [xiq['inventory_item_data']["item"] for xiq in inventory_items if "item" in xiq['inventory_item_data']]
         all_actual_item_str = "\n\nList of items:\n\n"
@@ -401,14 +400,14 @@ class PoGObot:
                                     self.log.debug("Releasing pokemon: %s", pokemon)
                                     self.log.info("Releasing pokemon: %s IV: %s CP: %s", self.pokemon_names[str(pokemon['pokemon_id'])], pokemon_iv_percentage(pokemon), pokemon['cp'])
                                     self.release_pokemon(pokemon_id=pokemon["id"])
-        return self.call()
+        return
 
     def disk_encounter_pokemon(self, lureinfo):
         try:
             encounter_id = lureinfo['encounter_id']
             fort_id = lureinfo['fort_id']
             position = self._posf
-            resp = self.disk_encounter(encounter_id=encounter_id, fort_id=fort_id, player_latitude=position[0], player_longitude=position[1]).call()['responses']['DISK_ENCOUNTER']
+            resp = self.api.disk_encounter(encounter_id=encounter_id, fort_id=fort_id, player_latitude=position[0], player_longitude=position[1]).call()['responses']['DISK_ENCOUNTER']
             if resp['result'] == 1:
                 capture_status = -1
                 self._pokeball_type = 1
@@ -452,7 +451,7 @@ class PoGObot:
         encounter_id = pokemon['encounter_id']
         spawn_point_id = pokemon['spawn_point_id']
         position = self._posf
-        encounter = self.encounter(
+        encounter = self.api.encounter(
             encounter_id=encounter_id,
             spawn_point_id=spawn_point_id,
             player_latitude=position[0],
@@ -496,6 +495,9 @@ class PoGObot:
         return False
 
     def login(self, provider, username, password, cached=False):
+        # set player position on the earth
+        self.api.set_position(*self._start_pos)
+
         # new authentication initialitation
         self.api.set_authentication(provider=provider, username=username, password=password)
 
@@ -504,6 +506,7 @@ class PoGObot:
 
         # try to log in like real app 
         response = self.api.app_simulation_login()
+        sleep(5 * random.random() + 5)
 
         if not response:
             self.log.info('Login failed!')
@@ -555,9 +558,9 @@ class PoGObot:
                 return False
 
     def attempt_hatch_eggs(self, res=None):
-        self.get_hatched_eggs().call()
+        self.api.get_hatched_eggs().call()
         if not res:
-            res = self.get_inventory().call()
+            res = self.api.get_inventory().call()
         hatching_incubator_list, empty_incubator_list = get_incubators_stat(res)
         hatching_eggs, immature_eggs = get_eggs_stat(res)
         hatching_eggs_count = 0
@@ -577,7 +580,7 @@ class PoGObot:
         return hatching_eggs_count
 
     def hatch_egg(self, incubator_id, egg_id):
-        response = self.use_item_egg_incubator(item_id=incubator_id, pokemon_id=egg_id).call()
+        response = self.api.use_item_egg_incubator(item_id=incubator_id, pokemon_id=egg_id).call()
         result = response.get('responses', {}).get('USE_ITEM_EGG_INCUBATOR', {})
         if len(result) == 0:
             return False
