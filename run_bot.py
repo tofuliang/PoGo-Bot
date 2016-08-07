@@ -93,6 +93,8 @@ def main():
 
     thread.start_new_thread(start_server, (bot, config.WEB_PORT))
 
+    if not bot.login(config.auth_service, config.username, config.password, config.cached):
+        return
     while True:
         try:
             bot.main_loop()

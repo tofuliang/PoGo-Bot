@@ -24,6 +24,7 @@ from collections import defaultdict
 import os.path
 
 from pgoapi import PGoApi
+from pgoapi import utilities as util
 
 logger = logging.getLogger(__name__)
 
@@ -139,7 +140,7 @@ class PoGObot:
 
     def __init__(self, config, pokemon_names, start_pos):
 
-        self.api = PGoApi(provider=config.get("auth_service"), username=config.get("username"), password=config.get("password"), position_lat=start_pos[0], position_lng=start_pos[1], position_alt=start_pos[2])
+        self.api = PGoApi()
         self.log = logging.getLogger(__name__)
         self._start_pos = start_pos
         self._walk_count = 1
@@ -229,7 +230,7 @@ class PoGObot:
     def spin_near_fort(self):
         map_cells = self.nearby_map_objects().get('responses', {}).get('GET_MAP_OBJECTS', {}).get('map_cells', {})
         sleep(2 * random.random() + 5)
-        forts = PGoApi.flatmap(lambda c: c.get('forts', []), map_cells)
+        forts = PoGObot.flatmap(lambda c: c.get('forts', []), map_cells)
         # check if there are GPX data
         if len(self.GPX_lat) == len(self.GPX_lon) and len(self.GPX_lat) > 0:
             if self._walk_count < len(self.GPX_lon):
@@ -279,7 +280,7 @@ class PoGObot:
     # this will catch any nearby pokemon
     def catch_near_pokemon(self):
         map_cells = self.nearby_map_objects().get('responses', {}).get('GET_MAP_OBJECTS', {}).get('map_cells', {})
-        pokemons = PGoApi.flatmap(lambda c: c.get('catchable_pokemons', []), map_cells)
+        pokemons = PoGObot.flatmap(lambda c: c.get('catchable_pokemons', []), map_cells)
         sleep(3 * random.random() + 5)
         # cache map cells for api
         self.map_cells = map_cells
@@ -298,11 +299,12 @@ class PoGObot:
 
     def nearby_map_objects(self):
         position = self.api.get_position()
-        neighbors = get_neighbors(self._posf)
-        return self.get_map_objects(latitude=position[0], longitude=position[1], since_timestamp_ms=[0] * len(neighbors), cell_id=neighbors).call()
+        cell_ids = util.get_cell_ids(lat=position[0], long=position[1], radius=700)
+        timestamps = [0,] * len(cell_ids)
+        return self.api.get_map_objects(latitude=position[0], longitude=position[1], since_timestamp_ms=timestamps, cell_id=cell_ids)
 
     def attempt_catch(self, encounter_id, spawn_point_id, ball_type):
-        r = self.catch_pokemon(
+        r = self.api.catch_pokemon(
             normalized_reticle_size=1.950,
             pokeball=ball_type,
             spin_modifier=0.850,
@@ -310,7 +312,7 @@ class PoGObot:
             normalized_hit_position=1,
             encounter_id=encounter_id,
             spawn_point_id=spawn_point_id,
-        ).call()['responses']['CATCH_POKEMON']
+        )['responses']['CATCH_POKEMON']
         self.log.info("Throwing pokeball type: %s", POKEBALLS[ball_type - 1]) # list the pokeball that was thrown
         if "status" in r:
             self.log.debug("Status: %d", r['status'])
@@ -493,32 +495,15 @@ class PoGObot:
                     sleep(2)
         return False
 
-    '''
     def login(self, provider, username, password, cached=False):
-        if not isinstance(username, basestring) or not isinstance(password, basestring):
-            raise AuthException("Username/password not correctly specified")
+        # new authentication initialitation
+        self.api.set_authentication(provider=provider, username=username, password=password)
 
-        if provider == 'ptc':
-            self._auth_provider = AuthPtc()
-        elif provider == 'google':
-            self._auth_provider = AuthGoogle()
-        else:
-            raise AuthException("Invalid authentication provider - only ptc/google available.")
+        # provide the path for your encrypt dll
+        self.api.activate_signature("pgoapi/encrypt.dll")
 
-        self.log.debug('Auth provider: %s', provider)
-
-        if not self._auth_provider.login(username, password):
-            self.log.info('Login process failed')
-            return False
-
-        self.log.debug('Starting RPC login sequence (app simulation)')
-        self.get_player()
-        self.get_hatched_eggs()
-        self.get_inventory()
-        self.check_awarded_badges()
-        self.download_settings(hash="05daf51635c82611d1aac95c0b051d3ec088a930")  # not sure what this is but dont change it
-        sleep(3 * random.random() + 5)
-        response = self.call()
+        # try to log in like real app 
+        response = self.api.app_simulation_login()
 
         if not response:
             self.log.info('Login failed!')
@@ -551,7 +536,6 @@ class PoGObot:
             sleep(3 * random.random() + 10)
 
         return True
-    '''
 
     def set_GPX(self):
         if len(self.GPX_lat) == 0 and len(self.GPX_lon) == 0:
