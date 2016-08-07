@@ -9,7 +9,6 @@ __pycache__/
 *$py.class
 auth_*
 # C extensions
-*.so
 
 # Distribution / packaging
 .Python
