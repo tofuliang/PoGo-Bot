@@ -13,7 +13,8 @@ import logging
 import argparse
 import thread
 from time import sleep
-from pgoapi import PGoApi
+# from pgoapi import PGoApi
+from pogobot import PoGObot
 # from pgoapi.utilities import f2i, h2f
 # from pgoapi.location import get_neighbors
 
@@ -88,15 +89,13 @@ def main():
 
     pokemon_names = json.load(open("name_id.json"))
 
-    api = PGoApi(config.__dict__, pokemon_names, position)
+    bot = PoGObot(config.__dict__, pokemon_names, position)
 
-    thread.start_new_thread(start_server, (api, config.WEB_PORT))
+    thread.start_new_thread(start_server, (bot, config.WEB_PORT))
 
-    if not api.login(config.auth_service, config.username, config.password, config.cached):
-        return
     while True:
         try:
-            api.main_loop()
+            bot.main_loop()
         except Exception as e:
             log.exception('Main loop has an ERROR, restarting %s', e)
             sleep(30)
