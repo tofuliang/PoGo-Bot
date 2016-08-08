@@ -194,12 +194,14 @@ class PoGObot:
         return
 
     def heartbeat(self):
-        if self._heartbeat_number % 10 == 0 or self._heartbeat_number == 0:  # every 10 heartbeats do a inventory check
-            # self.api.check_awarded_badges() commented because too close to the next request
-            res = self.api.get_inventory()
-            sleep(random.random() + 5)
+        res = self.api.get_inventory()
+        sleep(random.random() + 5)
         self.log.debug('Heartbeat dictionary: \n\r{}'.format(json.dumps(res, indent=2)))
         self.response_parse(res=res)
+        if self.AUTO_HATCHING and self._heartbeat_number % 10 == 0:
+            hatching_eggs_count = self.attempt_hatch_eggs(res=res)
+            if hatching_eggs_count > 0:
+                self.log.info("Start hatching %d eggs", hatching_eggs_count)
         self._heartbeat_number += 1
         return res
 
@@ -222,10 +224,6 @@ class PoGObot:
                             sleep(3 * random.random() + 1) # If you want to make it faster, delete this line... would not recommend though
                         else:
                             sleep(1)
-        if self.AUTO_HATCHING:
-            hatching_eggs_count = self.attempt_hatch_eggs()
-            if hatching_eggs_count > 0:
-                self.log.info("Start hatching %d eggs", hatching_eggs_count)
 
     # this is in charge of spinning a pokestop
     def spin_near_fort(self):
@@ -304,7 +302,8 @@ class PoGObot:
         self._posf = self.api.get_position()
         cell_ids = util.get_cell_ids(lat=self._posf[0], long=self._posf[1], radius=700)
         timestamps = [0,] * len(cell_ids)
-        return self.api.get_map_objects(latitude=self._posf[0], longitude=self._posf[1], since_timestamp_ms=timestamps, cell_id=cell_ids)
+        response = self.api.get_map_objects(latitude=self._posf[0], longitude=self._posf[1], since_timestamp_ms=timestamps, cell_id=cell_ids)
+        return response
 
     def attempt_catch(self, encounter_id, spawn_point_id, ball_type):
         r = self.api.catch_pokemon(
@@ -514,6 +513,10 @@ class PoGObot:
 
         # try to log in like real app 
         response = self.api.app_simulation_login()
+
+        # update Inventory
+        self.response_parse(res=response)
+
         sleep(5 * random.random() + 5)
 
         return True
@@ -536,7 +539,6 @@ class PoGObot:
                 return False
 
     def attempt_hatch_eggs(self, res=None):
-        self.api.get_hatched_eggs().call()
         if not res:
             res = self.api.get_inventory().call()
         hatching_incubator_list, empty_incubator_list = get_incubators_stat(res)

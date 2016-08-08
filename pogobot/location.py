@@ -30,7 +30,7 @@ def get_route(start, end, use_google=False, gmaps_api_key=None):
         counter = 0 # counts the nunber of API keys tried in a single get_route call
         while counter < len(gmaps_api_key): # break out of the loop if all API keys are giving errors
             try:
-                directions_service = Directions(api_key=gmaps_api_key[globalvars.apikeyindex])
+                directions_service = Directions(api_key=gmaps_api_key)
                 d = directions_service.directions(origin, destination, mode="walking", units="metric")
                 steps = d[0]['legs'][0]['steps']
                 return [(step['end_location']["lat"], step['end_location']["lng"]) for step in steps]
