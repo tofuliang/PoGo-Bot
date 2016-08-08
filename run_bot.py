@@ -16,16 +16,15 @@ import thread
 from time import sleep
 
 # add directory of this file to PATH, so that the package will be found
-sys.path.append(os.path.dirname(os.path.realpath(__file__)))
+# sys.path.append(os.path.dirname(os.path.realpath(__file__)))
 
 # from pgoapi import PGoApi
-from pogobot import pogobot
+from pogobot import pogobot, web
 # from utilities import f2i, h2f
 # from location import get_neighbors
 
 # from google.protobuf.internal import encoder
 from geopy.geocoders import GoogleV3
-from web import start_server
 # from s2sphere import CellId, LatLng
 
 log = logging.getLogger(__name__)
@@ -74,6 +73,7 @@ def init_config():
 def main():
     logging.basicConfig(level=logging.WARNING, format='%(asctime)s [%(module)10s] [%(levelname)5s] %(message)s')
     logging.getLogger("requests").setLevel(logging.WARNING)
+    logging.getLogger("pogobot").setLevel(logging.INFO)
     logging.getLogger("pgoapi").setLevel(logging.INFO)  # FIXME we need to work on what should be show normally and what should be shown durin debug
     logging.getLogger("rpc_api").setLevel(logging.INFO)
 
@@ -83,6 +83,7 @@ def main():
 
     if config.verbose:
         logging.getLogger("requests").setLevel(logging.DEBUG)
+        logging.getLogger("pogobot").setLevel(logging.DEBUG)
         logging.getLogger("pgoapi").setLevel(logging.DEBUG)  # FIXME we need to work on what should be show normally and what should be shown durin debug
         logging.getLogger("rpc_api").setLevel(logging.DEBUG)
 
@@ -94,7 +95,7 @@ def main():
 
     bot = pogobot.PoGObot(config.__dict__, pokemon_names, position)
 
-    thread.start_new_thread(start_server, (bot, config.WEB_PORT))
+    # thread.start_new_thread(web.start_server, (bot, config.WEB_PORT)) uncomment to add web visualization
 
     if not bot.login(config.auth_service, config.username, config.password, config.cached):
         return

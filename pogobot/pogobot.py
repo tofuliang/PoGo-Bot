@@ -26,8 +26,6 @@ import os.path
 from pgoapi import PGoApi
 from pgoapi import utilities as util
 
-logger = logging.getLogger(__name__)
-
 # Candy needed to evolve pokemon  to add new pokemon to auto evolve list edit them here
 CANDY_NEEDED_TO_EVOLVE = {1: 124,  # Bulbasaur
                           2: 99,  # Ivysaur
@@ -143,7 +141,7 @@ class PoGObot:
         self.api = PGoApi()
         self.log = logging.getLogger(__name__)
         self._start_pos = start_pos
-        self._posf = (0,0,0)
+        self._posf = start_pos
         self._walk_count = 1
         self.config = config
         self.evolved_pokemon_ids = []
@@ -166,12 +164,7 @@ class PoGObot:
             ((getattr(Inventory, key), value) for key, value in config.get('MIN_ITEM_COUNTS', {}).iteritems())
         )
 
-    def heartbeat(self):
-        if self._heartbeat_number % 10 == 0 or self._heartbeat_number == 0:  # every 10 heartbeats do a inventory check
-            # self.api.check_awarded_badges() commented because too close to the next request
-            res = self.api.get_inventory()
-            sleep(random.random() + 5)
-        self.log.debug('Heartbeat dictionary: \n\r{}'.format(json.dumps(res, indent=2)))
+    def response_parse(self, res):
         if 'GET_PLAYER' in res['responses']:
             player_data = res['responses'].get('GET_PLAYER', {}).get('player_data', {})
             if os.path.isfile("accounts/%s.json" % self.config['username']):
@@ -198,6 +191,15 @@ class PoGObot:
                 self.log.info("\n\n Username: %s, Lvl: %s, XP: %s/%s \n Currencies: %s \n", player_data.get('username', 'NA'), player_stats.get('level', 'NA'), player_stats.get('experience', 'NA'), player_stats.get('next_level_xp', 'NA'), currency_data)
             self.log.info("Cleaning up inventory")
             self.cleanup_inventory(res['responses']['GET_INVENTORY']['inventory_delta']['inventory_items'])
+        return
+
+    def heartbeat(self):
+        if self._heartbeat_number % 10 == 0 or self._heartbeat_number == 0:  # every 10 heartbeats do a inventory check
+            # self.api.check_awarded_badges() commented because too close to the next request
+            res = self.api.get_inventory()
+            sleep(random.random() + 5)
+        self.log.debug('Heartbeat dictionary: \n\r{}'.format(json.dumps(res, indent=2)))
+        self.response_parse(res=res)
         self._heartbeat_number += 1
         return res
 
@@ -239,7 +241,9 @@ class PoGObot:
                 sleep(1 * random.random() + 1)
                 for fort in available_forts:
                     if fort[1] < 10:
-                        res = self.api.fort_search(fort_id=fort['id'], fort_latitude=fort['latitude'], fort_longitude=fort['longitude'], player_latitude=self.GPX_lat[self._walk_count], player_longitude=self.GPX_lon[self._walk_count]).call()['responses']['FORT_SEARCH']
+                        request = self.api.create_request()
+                        request.fort_search(fort_id=fort['id'], fort_latitude=fort['latitude'], fort_longitude=fort['longitude'], player_latitude=self.GPX_lat[self._walk_count], player_longitude=self.GPX_lon[self._walk_count])
+                        res = request.call()['responses']['FORT_SEARCH']
                         if 'lure_info' in fort:
                             encounter_id = fort['lure_info']['encounter_id']
                             fort_id = fort['lure_info']['fort_id']
@@ -346,7 +350,7 @@ class PoGObot:
                 if item['item_id'] in self.min_item_counts and "count" in item and item['count'] > self.min_item_counts[item['item_id']]:
                     recycle_count = item['count'] - self.min_item_counts[item['item_id']]
                     self.log.debug("Recycling {0}, item count {1}".format(INVENTORY_DICT[item['item_id']], recycle_count))
-                    self.recycle_inventory_item(item_id=item['item_id'], count=recycle_count)
+                    self.api.recycle_inventory_item(item_id=item['item_id'], count=recycle_count)
 
         for pokemons in caught_pokemon.values():
             if len(pokemons) > MIN_SIMILAR_POKEMON:  # if you have more than 1 of the same amount of pokemon do this
@@ -356,7 +360,7 @@ class PoGObot:
                         for inventory_item in inventory_items:
                             if "pokemon_family" in inventory_item['inventory_item_data'] and (inventory_item['inventory_item_data']['pokemon_family']['family_id'] == pokemon['pokemon_id'] or inventory_item['inventory_item_data']['pokemon_family']['family_id'] == (pokemon['pokemon_id'] - 1)) and inventory_item['inventory_item_data']['pokemon_family'].get('candy', 0) > CANDY_NEEDED_TO_EVOLVE[pokemon['pokemon_id']] and pokemon['pokemon_id'] not in self.evolved_pokemon_ids:
                                 self.log.info("Evolving pokemon: %s", self.pokemon_names[str(pokemon['pokemon_id'])])
-                                self.evolve_pokemon(pokemon_id=pokemon['id'])  # quick press ctrl + c to stop the evolution
+                                self.api.evolve_pokemon(pokemon_id=pokemon['id'])  # quick press ctrl + c to stop the evolution
                                 self.evolved_pokemon_ids.append(pokemon['pokemon_id'])
                                 if self.SLOW_BUT_STEALTH:
                                     sleep(3 * random.random() + 5)
@@ -377,7 +381,7 @@ class PoGObot:
                 if not atgym:
                     self.log.debug("Releasing pokemon: %s", pokemon)
                     self.log.info("Releasing pokemon: %s IV: %s CP: %s", self.pokemon_names[str(pokemon['pokemon_id'])], pokemon_iv_percentage(pokemon), pokemon['cp'])
-                    self.release_pokemon(pokemon_id=pokemon["id"])
+                    self.api.release_pokemon(pokemon_id=pokemon["id"])
             if self.RELEASE_DUPLICATES:
                 if len(pokemons) > MIN_SIMILAR_POKEMON:
                     # chose which pokemon should be released: first check IV, second CP
@@ -390,7 +394,7 @@ class PoGObot:
                                 if not atgym:
                                     self.log.debug("Releasing pokemon: %s", top_CP_pokemon)
                                     self.log.info("Releasing pokemon: %s IV: %s CP: %s", self.pokemon_names[str(top_CP_pokemon['pokemon_id'])], pokemon_iv_percentage(top_CP_pokemon), top_CP_pokemon['cp'])
-                                    self.release_pokemon(pokemon_id=top_CP_pokemon["id"])
+                                    self.api.release_pokemon(pokemon_id=top_CP_pokemon["id"])
                                     top_CP_pokemon = pokemon
                         elif top_CP_pokemon['cp'] * self.DUPLICATE_CP_FORGIVENESS > pokemon['cp']:
                                 atgym = 'deployed_fort_id' in pokemon
@@ -399,7 +403,7 @@ class PoGObot:
                                 if not atgym:
                                     self.log.debug("Releasing pokemon: %s", pokemon)
                                     self.log.info("Releasing pokemon: %s IV: %s CP: %s", self.pokemon_names[str(pokemon['pokemon_id'])], pokemon_iv_percentage(pokemon), pokemon['cp'])
-                                    self.release_pokemon(pokemon_id=pokemon["id"])
+                                    self.api.release_pokemon(pokemon_id=pokemon["id"])
         return
 
     def disk_encounter_pokemon(self, lureinfo):

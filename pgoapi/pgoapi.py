@@ -47,7 +47,7 @@ class PGoApi:
 
     def __init__(self, provider=None, oauth2_refresh_token=None, username=None, password=None, position_lat=None, position_lng=None, position_alt=None):
         self.set_logger()
-        self.log.info('%s v%s - %s', __title__, __version__, __copyright__)
+        self.log.debug('%s v%s - %s', __title__, __version__, __copyright__)
 
         self._auth_provider = None
         if provider is not None and ((username is not None and password is not None) or (oauth2_refresh_token is not None)):
@@ -209,7 +209,7 @@ class PGoApiRequest:
         if lib_path is not None:
             request.activate_signature(lib_path)
 
-        self.log.info('Execution of RPC')
+        self.log.debug('Execution of RPC')
         response = None
 
         execute = True
@@ -224,7 +224,7 @@ class PGoApiRequest:
                 so that we are assuming, that the access_token is always valid until the API server states differently.
                 """
                 try:
-                    self.log.info('Access Token rejected! Requesting new one...')
+                    self.log.debug('Access Token rejected! Requesting new one...')
                     self._auth_provider.get_access_token(force_refresh=True)
                 except:
                     error = 'Request for new Access Token failed! Logged out...'
@@ -234,7 +234,7 @@ class PGoApiRequest:
                 """ reexecute the call"""
                 execute = True
             except ServerApiEndpointRedirectException as e:
-                self.log.info('API Endpoint redirect... re-execution of call')
+                self.log.debug('API Endpoint redirect... re-execution of call')
                 new_api_endpoint = e.get_redirected_endpoint()
 
                 self._api_endpoint = parse_api_endpoint(new_api_endpoint)
@@ -251,7 +251,7 @@ class PGoApiRequest:
                 raise
 
         # cleanup after call execution
-        self.log.info('Cleanup of request!')
+        self.log.debug('Cleanup of request!')
         self._req_method_list = []
 
         return response
@@ -275,18 +275,18 @@ class PGoApiRequest:
 
             if '_call_direct' in kwargs:
                 del kwargs['_call_direct']
-                self.log.info('Creating a new direct request...')
+                self.log.debug('Creating a new direct request...')
             elif not self._req_method_list:
-                self.log.info('Creating a new request...')
+                self.log.debug('Creating a new request...')
 
             name = func.upper()
             if kwargs:
                 self._req_method_list.append({RequestType.Value(name): kwargs})
-                self.log.info("Adding '%s' to RPC request including arguments", name)
+                self.log.debug("Adding '%s' to RPC request including arguments", name)
                 self.log.debug("Arguments of '%s': \n\r%s", name, kwargs)
             else:
                 self._req_method_list.append(RequestType.Value(name))
-                self.log.info("Adding '%s' to RPC request", name)
+                self.log.debug("Adding '%s' to RPC request", name)
 
             return self
 
