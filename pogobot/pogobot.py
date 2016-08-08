@@ -451,12 +451,15 @@ class PoGObot:
         encounter_id = pokemon['encounter_id']
         spawn_point_id = pokemon['spawn_point_id']
         position = self._posf
-        encounter = self.api.encounter(
+        request = self.api.create_request()
+        request.encounter(
             encounter_id=encounter_id,
             spawn_point_id=spawn_point_id,
             player_latitude=position[0],
             player_longitude=position[1]
-        ).call()['responses']['ENCOUNTER']
+        )
+        response = request.call()
+        encounter = response['responses']['ENCOUNTER']
         # this cade catches pokemon
         self.log.debug("Started Encounter: %s", encounter)
         if encounter['status'] == 1:
@@ -495,6 +498,7 @@ class PoGObot:
         return False
 
     def login(self, provider, username, password, cached=False):
+
         # set player position on the earth
         self.api.set_position(*self._start_pos)
 
@@ -507,13 +511,6 @@ class PoGObot:
         # try to log in like real app 
         response = self.api.app_simulation_login()
         sleep(5 * random.random() + 5)
-
-        if 'api_url' in response:
-            self.api.set_api_endpoint = ('https://{}/rpc'.format(response['api_url']))
-            self.log.debug('Setting API endpoint to: %s', self._api_endpoint)
-        else:
-            self.log.error('Login failed - unexpected server response!')
-            return False
 
         return True
 

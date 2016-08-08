@@ -5,6 +5,7 @@
 # If you want to make the bot as fast as possible for catching more pokemon (like you are driving a fast car--it won't look suspicious though, since it only goes on paths), make stepsize 200; for more info see that method in pgoapi.py under pgoapi...but still I wouldn't recommend making stepsize that high
 
 import os
+import sys
 # import re
 import json
 # import struct
@@ -13,10 +14,14 @@ import logging
 import argparse
 import thread
 from time import sleep
+
+# add directory of this file to PATH, so that the package will be found
+sys.path.append(os.path.dirname(os.path.realpath(__file__)))
+
 # from pgoapi import PGoApi
-import pogobot
-# from pogobot.utilities import f2i, h2f
-# from pogobot.location import get_neighbors
+from pogobot import pogobot
+# from utilities import f2i, h2f
+# from location import get_neighbors
 
 # from google.protobuf.internal import encoder
 from geopy.geocoders import GoogleV3
