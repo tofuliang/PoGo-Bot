@@ -15,9 +15,9 @@ import pickle
 import random
 import json
 import xml.etree.ElementTree as ETXML
-from pgoapi.location import distance_in_meters, get_increments, get_neighbors, get_route, filtered_forts
+from pogobot.location import distance_in_meters, get_increments, get_neighbors, get_route, filtered_forts
 # import pgoapi.protos.POGOProtos.Enums_pb2 as RpcEnum
-from pgoapi.poke_utils import pokemon_iv_percentage, get_inventory_data, get_pokemon_num, get_incubators_stat, incubators_stat_str, \
+from pogobot.poke_utils import pokemon_iv_percentage, get_inventory_data, get_pokemon_num, get_incubators_stat, incubators_stat_str, \
     get_eggs_stat
 from time import sleep
 from collections import defaultdict
@@ -508,35 +508,12 @@ class PoGObot:
         response = self.api.app_simulation_login()
         sleep(5 * random.random() + 5)
 
-        if not response:
-            self.log.info('Login failed!')
-        if os.path.isfile("auth_cache") and cached:
-            response = pickle.load(open("auth_cache"))
-        fname = "auth_cache_%s" % username
-        if os.path.isfile(fname) and cached:
-            response = pickle.load(open(fname))
-        else:
-            response = self.heartbeat()
-            f = open(fname, "w")
-            pickle.dump(response, f)
-        if not response:
-            self.log.info('Login failed!')
-            return False
-
         if 'api_url' in response:
-            self._api_endpoint = ('https://{}/rpc'.format(response['api_url']))
+            self.api.set_api_endpoint = ('https://{}/rpc'.format(response['api_url']))
             self.log.debug('Setting API endpoint to: %s', self._api_endpoint)
         else:
             self.log.error('Login failed - unexpected server response!')
             return False
-
-        if 'auth_ticket' in response:
-            self._auth_provider.set_ticket(response['auth_ticket'].values())
-
-        self.log.debug('Finished RPC login sequence (app simulation)')
-        self.log.info('Login process completed')
-        if self.SLOW_BUT_STEALTH:
-            sleep(3 * random.random() + 10)
 
         return True
 

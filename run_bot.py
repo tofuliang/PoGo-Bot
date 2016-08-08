@@ -14,16 +14,14 @@ import argparse
 import thread
 from time import sleep
 # from pgoapi import PGoApi
-from pogobot import PoGObot
-# from pgoapi.utilities import f2i, h2f
-# from pgoapi.location import get_neighbors
+import pogobot
+# from pogobot.utilities import f2i, h2f
+# from pogobot.location import get_neighbors
 
 # from google.protobuf.internal import encoder
 from geopy.geocoders import GoogleV3
 from web import start_server
 # from s2sphere import CellId, LatLng
-
-import pgoapi.globalvars # import global variables module currently used for tracking the used Gmaps API keys to prevent extra requests to bad keys # noqa
 
 log = logging.getLogger(__name__)
 
@@ -89,7 +87,7 @@ def main():
 
     pokemon_names = json.load(open("name_id.json"))
 
-    bot = PoGObot(config.__dict__, pokemon_names, position)
+    bot = pogobot.PoGObot(config.__dict__, pokemon_names, position)
 
     thread.start_new_thread(start_server, (bot, config.WEB_PORT))
 
