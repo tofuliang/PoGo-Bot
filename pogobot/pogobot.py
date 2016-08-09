@@ -15,7 +15,7 @@ import pickle
 import random
 import json
 import xml.etree.ElementTree as ETXML
-from pogobot.location import distance_in_meters, get_increments, get_neighbors, get_route, filtered_forts
+from pogobot.location import distance_in_meters, get_increments, get_neighbors, get_route, filtered_forts, append_altitude
 # import pgoapi.protos.POGOProtos.Enums_pb2 as RpcEnum
 from pogobot.poke_utils import pokemon_iv_percentage, get_inventory_data, get_pokemon_num, get_incubators_stat, incubators_stat_str, \
     get_eggs_stat
@@ -148,6 +148,7 @@ class PoGObot:
         self.GPX_lat = []
         self.GPX_lon = []
         self._pokeball_type = 1
+        self.GMAPS_KEY = config.get("GMAPS_API_KEY", "")
         self.MIN_KEEP_IV = config.get("MIN_KEEP_IV", 0)
         self.KEEP_CP_OVER = config.get("KEEP_CP_OVER", 0)
         self.RELEASE_DUPLICATES = config.get("RELEASE_DUPLICATE", 0)
@@ -164,72 +165,70 @@ class PoGObot:
             ((getattr(Inventory, key), value) for key, value in config.get('MIN_ITEM_COUNTS', {}).iteritems())
         )
 
-    def response_parse(self, res):
+    def response_parser(self, res):
+        if os.path.isfile("accounts/%s.json" % self.config['username']):
+            with open("accounts/%s.json" % self.config['username'], "w") as file_to_write:
+                file_to_write.write(json.dumps(res['responses'], indent=2))
+                file_to_write.close()
+            with open("accounts/%s.json" % self.config['username'], "r") as file_to_read:
+                file = file_to_read.read()
+                json_file = json.loads(file)
         if 'GET_PLAYER' in res['responses']:
-            player_data = res['responses'].get('GET_PLAYER', {}).get('player_data', {})
-            if os.path.isfile("accounts/%s.json" % self.config['username']):
-                with open("accounts/%s.json" % self.config['username'], "r") as f:
-                    file = f.read()
-                    json_file = json.loads(file)
-                inventory_items = json_file.get('GET_INVENTORY', {}).get('inventory_delta', {}).get('inventory_items', [])
-                inventory_items_dict_list = map(lambda x: x.get('inventory_item_data', {}), inventory_items)
-                player_stats = filter(lambda x: 'player_stats' in x, inventory_items_dict_list)[0].get('player_stats', {})
-            else:
-                player_stats = {}
+            player_data = res['responses'].get('GET_PLAYER', {}).get('player_data', {})            
+            inventory_items = json_file.get('GET_INVENTORY', {}).get('inventory_delta', {}).get('inventory_items', [])
+            inventory_items_dict_list = map(lambda x: x.get('inventory_item_data', {}), inventory_items)
+            player_stats = filter(lambda x: 'player_stats' in x, inventory_items_dict_list)[0].get('player_stats', {})
             currencies = player_data.get('currencies', [])
             currency_data = ",".join(map(lambda x: "{0}: {1}".format(x.get('name', 'NA'), x.get('amount', 'NA')), currencies))
+            self.log.info("\n\n Username: %s, Lvl: %s, XP: %s/%s \n Currencies: %s \n", player_data.get('username', 'NA'), player_stats.get('level', 'NA'), player_stats.get('experience', 'NA'), player_stats.get('next_level_xp', 'NA'), currency_data)
         if 'GET_INVENTORY' in res['responses']:
-            with open("accounts/%s.json" % self.config['username'], "w") as f:
-                res['responses']['lat'] = self._posf[0]
-                res['responses']['lng'] = self._posf[1]
-                f.write(json.dumps(res['responses'], indent=2))
-            # new inventory data has just been saved, clearing evolved pokemons list
-            self.evolved_pokemon_ids = []
-            # create string with pokemon list, add users info and print everything
+            res['responses']['lat'] = self._posf[0]
+            res['responses']['lng'] = self._posf[1]
             self.log.info("\n\nList of Pokemon:\n" + get_inventory_data(res, self.pokemon_names) + "\nTotal Pokemon count: " + str(get_pokemon_num(res)) + "\nEgg Hatching status: " + incubators_stat_str(res) + "\n")
-            if 'GET_PLAYER' in res['responses']:
-                self.log.info("\n\n Username: %s, Lvl: %s, XP: %s/%s \n Currencies: %s \n", player_data.get('username', 'NA'), player_stats.get('level', 'NA'), player_stats.get('experience', 'NA'), player_stats.get('next_level_xp', 'NA'), currency_data)
             self.log.info("Cleaning up inventory")
             self.cleanup_inventory(res['responses']['GET_INVENTORY']['inventory_delta']['inventory_items'])
+            # new inventory data has just been saved, clearing evolved pokemons list
+            self.evolved_pokemon_ids = []
+        if 'GET_MAPS_OBJECTS' in res['responses']:
+            pass
         return
 
     def heartbeat(self):
         res = self.api.get_inventory()
         sleep(random.random() + 5)
         self.log.debug('Heartbeat dictionary: \n\r{}'.format(json.dumps(res, indent=2)))
-        self.response_parse(res=res)
+        self.response_parser(res=res)
         if self.AUTO_HATCHING and self._heartbeat_number % 10 == 0:
             hatching_eggs_count = self.attempt_hatch_eggs(res=res)
             if hatching_eggs_count > 0:
                 self.log.info("Start hatching %d eggs", hatching_eggs_count)
+        self.spin_near_fort()
         self._heartbeat_number += 1
         return res
 
     def walk_to(self, loc):
         self._walk_count += 1
-        steps = get_route(self._posf, loc, self.config.get("USE_GOOGLE", False), self.config.get("GMAPS_API_KEY", ""))
+        steps = get_route(self._posf, loc, self.GMAPS_KEY)
         for step in steps:
-            for i, next_point in enumerate(get_increments(self._posf, step, self.config.get("STEP_SIZE", 200))):
-                self.api.set_position(*next_point)
-                self.heartbeat()
-                self.log.debug("Sleeping before next heartbeat")
-                if self.SLOW_BUT_STEALTH:
-                    sleep(3 * random.random() + 2)
-                else:
-                    sleep(2)
+            for next_point in enumerate(get_increments(self._posf, step, self.config.get("STEP_SIZE", 100))):
+                final_point = append_altitude(next_point[1][0], next_point[1][1], self.GMAPS_KEY)
+                self.api.set_position(*final_point)
                 # make sure we have atleast 1 ball
-                if sum(self.pokeballs) > 0:
+                if sum(self.pokeballs) > 0 and self._walk_count % 3:
                     while self.catch_near_pokemon():
                         if self.SLOW_BUT_STEALTH:
-                            sleep(3 * random.random() + 1) # If you want to make it faster, delete this line... would not recommend though
-                        else:
-                            sleep(1)
+                            sleep(1 * random.random() + 1) # If you want to make it faster, delete this line... would not recommend though
+
+        return
+
 
     # this is in charge of spinning a pokestop
     def spin_near_fort(self):
-        map_cells = self.nearby_map_objects().get('responses', {}).get('GET_MAP_OBJECTS', {}).get('map_cells', {})
+        response = self.nearby_map_objects()
         sleep(2 * random.random() + 5)
-        forts = PoGObot.flatmap(lambda c: c.get('forts', []), map_cells)
+        self.response_parser(response)
+        map_cells = response.get('responses', {}).get('GET_MAP_OBJECTS', {}).get('map_cells', {})
+        forts = PoGObot.from_iterable_to_chain(lambda c: c.get('forts', []), map_cells)
         # check if there are GPX data
         if len(self.GPX_lat) == len(self.GPX_lon) and len(self.GPX_lat) > 0:
             if self._walk_count < len(self.GPX_lon):
@@ -257,20 +256,28 @@ class PoGObot:
                 destinations = filtered_forts(self._start_pos, forts)
             else:
                 destinations = filtered_forts(self._posf, forts)
-            if destinations:
+            if len(destinations) > 0:
+                # select a random pokestop and go there
                 destination_num = random.randint(0, min(5, len(destinations) - 1))
                 fort = destinations[destination_num]
                 self.log.info("Walking to fort at %s,%s", fort['latitude'], fort['longitude'])
                 self.walk_to((fort['latitude'], fort['longitude']))
-                position = self._posf # FIXME ?
-                res = self.api.fort_search(fort_id=fort['id'], fort_latitude=fort['latitude'], fort_longitude=fort['longitude'], player_latitude=position[0], player_longitude=position[1]).call()['responses']['FORT_SEARCH']
-                self.log.debug("Fort spinned: %s", res)
+                self.log.info("Walked to fort at %s,%s", fort['latitude'], fort['longitude'])
+                # when arrived, get the new position and spin the pokestop
+                self._posf = self.api.get_position()
+                position = self._posf
+                request = self.api.create_request()
+                request.fort_search(fort_id=fort['id'], fort_latitude=fort['latitude'], fort_longitude=fort['longitude'], player_latitude=position[0], player_longitude=position[1])
+                res = request.call()['responses']['FORT_SEARCH']
+                self.log.info("Fort spinned: %s", res)
                 if 'lure_info' in fort:
                     encounter_id = fort['lure_info']['encounter_id']
                     fort_id = fort['lure_info']['fort_id']
                     position = self._posf
-                    resp = self.api.disk_encounter(encounter_id=encounter_id, fort_id=fort_id, player_latitude=position[0], player_longitude=position[1]).call()['responses']['DISK_ENCOUNTER']
-                    self.log.debug('Encounter response is: %s', resp)
+                    request_2 = self.api.create_request()
+                    request_2.disk_encounter(encounter_id=encounter_id, fort_id=fort_id, player_latitude=position[0], player_longitude=position[1])
+                    resp = request_2.call()['responses']['DISK_ENCOUNTER']
+                    self.log.info('Encounter response is: %s', resp)
                     if self.pokeballs[1] > 9 and self.pokeballs[2] > 4 and self.pokeballs[3] > 4:
                         self.disk_encounter_pokemon(fort['lure_info'])
                 return True
@@ -281,7 +288,7 @@ class PoGObot:
     # this will catch any nearby pokemon
     def catch_near_pokemon(self):
         map_cells = self.nearby_map_objects().get('responses', {}).get('GET_MAP_OBJECTS', {}).get('map_cells', {})
-        pokemons = PoGObot.flatmap(lambda c: c.get('catchable_pokemons', []), map_cells)
+        pokemons = PoGObot.from_iterable_to_chain(lambda c: c.get('catchable_pokemons', []), map_cells)
         sleep(3 * random.random() + 5)
         # cache map cells for api
         self.map_cells = map_cells
@@ -294,13 +301,11 @@ class PoGObot:
             self.log.debug("Catching pokemon: : %s, distance: %f meters", target[0], target[1])
             self.log.info("Catching Pokemon: %s", self.pokemon_names[str(target[0]['pokemon_id'])])
             return self.encounter_pokemon(target[0])
-            if sum(self.pokeballs) == 0:
-                self.spin_near_fort()
         return False
 
     def nearby_map_objects(self):
         self._posf = self.api.get_position()
-        cell_ids = util.get_cell_ids(lat=self._posf[0], long=self._posf[1], radius=700)
+        cell_ids = util.get_cell_ids(lat=self._posf[0], long=self._posf[1], radius=500)
         timestamps = [0,] * len(cell_ids)
         response = self.api.get_map_objects(latitude=self._posf[0], longitude=self._posf[1], since_timestamp_ms=timestamps, cell_id=cell_ids)
         return response
@@ -411,6 +416,7 @@ class PoGObot:
             fort_id = lureinfo['fort_id']
             position = self._posf
             resp = self.api.disk_encounter(encounter_id=encounter_id, fort_id=fort_id, player_latitude=position[0], player_longitude=position[1]).call()['responses']['DISK_ENCOUNTER']
+            sleep(2*random.random() + 1)
             if resp['result'] == 1:
                 capture_status = -1
                 self._pokeball_type = 1
@@ -454,6 +460,7 @@ class PoGObot:
         encounter_id = pokemon['encounter_id']
         spawn_point_id = pokemon['spawn_point_id']
         position = self._posf
+        # contact the servers
         request = self.api.create_request()
         request.encounter(
             encounter_id=encounter_id,
@@ -515,7 +522,7 @@ class PoGObot:
         response = self.api.app_simulation_login()
 
         # update Inventory
-        self.response_parse(res=response)
+        self.response_parser(res=response)
 
         sleep(5 * random.random() + 5)
 
@@ -560,7 +567,11 @@ class PoGObot:
         return hatching_eggs_count
 
     def hatch_egg(self, incubator_id, egg_id):
-        response = self.api.use_item_egg_incubator(item_id=incubator_id, pokemon_id=egg_id).call()
+        # contact the servers
+        request = self.api.create_request()
+        request.use_item_egg_incubator(item_id=incubator_id, pokemon_id=egg_id)
+        response = request.call()
+        sleep(random.random() +1)
         result = response.get('responses', {}).get('USE_ITEM_EGG_INCUBATOR', {})
         if len(result) == 0:
             return False
@@ -581,5 +592,5 @@ class PoGObot:
             self.spin_near_fort()  # check local pokestop
 
     @staticmethod
-    def flatmap(f, items):
+    def from_iterable_to_chain(f, items):
         return chain.from_iterable(imap(f, items))

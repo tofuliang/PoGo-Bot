@@ -74,7 +74,7 @@ def main():
     logging.basicConfig(level=logging.WARNING, format='%(asctime)s [%(module)10s] [%(levelname)5s] %(message)s')
     logging.getLogger("requests").setLevel(logging.WARNING)
     logging.getLogger("pogobot").setLevel(logging.INFO)
-    logging.getLogger("pgoapi").setLevel(logging.INFO)  # FIXME we need to work on what should be show normally and what should be shown durin debug
+    logging.getLogger("pgoapi").setLevel(logging.INFO)
     logging.getLogger("rpc_api").setLevel(logging.INFO)
 
     config = init_config()
@@ -84,7 +84,7 @@ def main():
     if config.verbose:
         logging.getLogger("requests").setLevel(logging.DEBUG)
         logging.getLogger("pogobot").setLevel(logging.DEBUG)
-        logging.getLogger("pgoapi").setLevel(logging.DEBUG)  # FIXME we need to work on what should be show normally and what should be shown durin debug
+        logging.getLogger("pgoapi").setLevel(logging.DEBUG)
         logging.getLogger("rpc_api").setLevel(logging.DEBUG)
 
     position = get_pos_by_name(config.location)
@@ -93,10 +93,18 @@ def main():
 
     pokemon_names = json.load(open("name_id.json"))
 
+    # this creates th dump file is not already present
+    if not os.path.isfile("accounts/%s.json" % config.username):
+        with open("accounts/%s.json" % config.username, "w") as f:
+                f.write(json.dumps({}, indent=2))
+                f.close()
+    
+    # crates the bot object
     bot = pogobot.PoGObot(config.__dict__, pokemon_names, position)
 
     # thread.start_new_thread(web.start_server, (bot, config.WEB_PORT)) uncomment to add web visualization
 
+    # login attempt, the starts the main boot loop
     if not bot.login(config.auth_service, config.username, config.password, config.cached):
         return
     while True:

@@ -28,7 +28,6 @@ from __future__ import absolute_import
 import logging
 from pgoapi.utilities import get_time, get_format_time_diff
 
-
 class Auth:
 
     def __init__(self):
@@ -38,14 +37,20 @@ class Auth:
 
         self._login = False
 
-        # oauth2 uses refresh tokens (which basically never expires) to get an access_token which is only valid for a certain time)
+        """ 
+        oauth2 uses refresh tokens (which basically never expires) 
+        to get an access_token which is only valid for a certain time)
+        """
         self._refresh_token = None
         self._access_token = None
         self._access_token_expiry = 0
         # TODO: can be removed
         self._auth_token = None
 
-        # Pokemon Go uses internal tickets, like an internal session to keep a user logged in over a certain time (30 minutes)
+        """ 
+        Pokemon Go uses internal tickets, like an internal 
+        session to keep a user logged in over a certain time (30 minutes)
+        """
         self._ticket_expire = None
         self._ticket_start = None
         self._ticket_end = None
@@ -76,7 +81,7 @@ class Auth:
 
     def check_ticket(self):
         if self.has_ticket():
-            now_ms = get_time(ms=True)
+            now_ms = get_time(ms = True)
             if now_ms < (self._ticket_expire - 10000):
                 h, m, s = get_format_time_diff(now_ms, self._ticket_expire, True)
                 self.log.debug('Session Ticket still valid for further %02d:%02d:%02d hours (%s < %s)', h, m, s, now_ms, self._ticket_expire)
@@ -100,12 +105,15 @@ class Auth:
     def set_refresh_token(self, username, password):
         raise NotImplementedError()
 
-    def get_access_token(self, force_refresh=False):
+    def get_access_token(self, force_refresh = False):
         raise NotImplementedError()
 
-    def check_access_token(self):
 
-        # Add few seconds to now so the token get refreshed before it invalidates in the middle of the request
+    def check_access_token(self):
+        """
+        Add few seconds to now so the token get refreshed 
+        before it invalidates in the middle of the request
+        """
         now_s = get_time() + 120
 
         if self._access_token is not None:

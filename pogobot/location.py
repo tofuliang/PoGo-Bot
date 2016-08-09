@@ -4,6 +4,9 @@
 from geopy.geocoders import GoogleV3
 from gmaps.errors import GmapException
 from gmaps.directions import Directions
+from googlemaps import Client
+from googlemaps.directions import directions
+from googlemaps.elevation import elevation
 import s2sphere
 from geopy.distance import VincentyDistance, vincenty # Vincenty...
 import pyproj
@@ -20,28 +23,17 @@ def get_location(search):
     return (loc.latitude, loc.longitude, loc.altitude)
 
 
-def get_route(start, end, use_google=False, gmaps_api_key=None):
-    if gmaps_api_key is None:
-        gmaps_api_key = [""]
+def get_route(start, end, gmaps_api_key):
     origin = (start[0], start[1])
-    destination = (end[0], end[1])
-    if use_google:
-        # try the Gmaps API with all the keys from the array in config until all return errors in a single get_route call
-        counter = 0 # counts the nunber of API keys tried in a single get_route call
-        while counter < len(gmaps_api_key): # break out of the loop if all API keys are giving errors
-            try:
-                directions_service = Directions(api_key=gmaps_api_key)
-                d = directions_service.directions(origin, destination, mode="walking", units="metric")
-                steps = d[0]['legs'][0]['steps']
-                return [(step['end_location']["lat"], step['end_location']["lng"]) for step in steps]
-            except GmapException:
-                pass
-    else:
-        return [destination]
+    destination = (end[0], end[1])    
+    directions_service = Directions(api_key=gmaps_api_key)
+    d = directions_service.directions(origin, destination, mode="walking", units="metric")
+    steps = d[0]['legs'][0]['steps']
+    return [(step['end_location']["lat"], step['end_location']["lng"]) for step in steps]
 
 
 # step_size is how many meters we want; change that in config.json
-def get_increments(start, end, step_size=200):
+def get_increments(start, end, step_size=100):
     g = pyproj.Geod(ellps='WGS84')
     (startlat, startlong, _) = start
     (endlat, endlong) = end
@@ -52,13 +44,20 @@ def get_increments(start, end, step_size=200):
     lonlats.append((endlong, endlat))
     return [(l[1], l[0], 0) for l in lonlats]
 
+def append_altitude(lat, lon, gmaps_api_key):
+    request_google = Client(key=str(gmaps_api_key))
+    location = (lat, lon)
+    response = request_google.elevation(locations=location)
+    elev = response[0]['elevation']
+    return (lat, lon, elev)
+
 
 def distance_in_meters(p1, p2):
     return vincenty(p1, p2).meters
 
 
 def filtered_forts(origin, forts):
-    forts = [(fort, distance_in_meters(origin, (fort['latitude'], fort['longitude']))) for fort in forts if fort.get('type', None) == 1 and ("enabled" in fort or "lure_info" in fort) and fort.get('cooldown_complete_timestamp_ms', -1) < time() * 1000]
+    forts = [(fort, distance_in_meters(origin, (fort['latitude'], fort['longitude']))) for fort in forts if fort.get('type', None) == 1]
     sorted_forts = sorted(forts, lambda x, y: cmp(x[1], y[1]))
     return [x[0] for x in sorted_forts]
 
