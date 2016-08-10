@@ -10,6 +10,7 @@ from itertools import chain, imap
 # from termcolor import colored # get color logging soon
 from pgoapi.protos.POGOProtos.Networking.Requests_pb2 import RequestType
 from pgoapi.protos.POGOProtos import Inventory_pb2 as Inventory
+from pgoapi.exceptions import ServerSideRequestThrottlingException
 
 import pickle
 import random
@@ -187,7 +188,7 @@ class PoGObot:
         if 'GET_INVENTORY' in res['responses']:
             res['responses']['lat'] = self._posf[0]
             res['responses']['lng'] = self._posf[1]
-            self.log.info("\n\nList of Pokemon:\n" + get_inventory_data(res, self.pokemon_names) + "\nTotal Pokemon count: " + str(get_pokemon_num(res)) + "\nEgg Hatching status: " + incubators_stat_str(res) + "\n")
+            self.log.info("\n\nList of Pokemon:\n" + get_inventory_data(res, self.pokemon_names) + "\nTotal Pokemon count: " + str(get_pokemon_num(res)) + "\n\nEgg Hatching status: " + incubators_stat_str(res) + "\n")
             self.log.info("Cleaning up inventory")
             self.cleanup_inventory(res['responses']['GET_INVENTORY']['inventory_delta']['inventory_items'])
             # new inventory data has just been saved, clearing evolved pokemons list
@@ -275,6 +276,9 @@ class PoGObot:
                 res = request.call()['responses']['FORT_SEARCH']
                 if 'items_awarded' in res:
                     self.log.info("Fort spinned!")
+                # now i fully understand java's switch/case
+                elif res['result'] == 3:
+                    self.log.info("Fort already spinned (cooling down)!")
                 else:
                     self.log.info("Fort not spinned succesfully!")
                 if 'lure_info' in fort:
@@ -625,14 +629,21 @@ class PoGObot:
     def main_loop(self):
         self.set_GPX()
         while True:
-            self.heartbeat()
-            sleep(1 * random.random() + 1) # If you want to make it faster, delete this line... would not recommend though
-            if sum(self.pokeballs) > 0:  # if you do not have any balls skip pokemon catching
-                while self.catch_near_pokemon():
-                    sleep(1 * random.random() + 2) # If you want to make it faster, delete this line... would not recommend though
-            else:
-                self.log.info("Less than 1 Poke Balls: Entering pokestops only")
-            self.spin_near_fort()  # check local pokestop
+            try:
+                self.heartbeat()
+                sleep(1 * random.random() + 1) # If you want to make it faster, delete this line... would not recommend though
+                if sum(self.pokeballs) > 0:  # if you do not have any balls skip pokemon catching
+                    while self.catch_near_pokemon():
+                        sleep(1 * random.random() + 2) # If you want to make it faster, delete this line... would not recommend though
+                else:
+                    self.log.info("Less than 1 Poke Balls: Entering pokestops only")
+                self.spin_near_fort()  # check local pokestop
+            except ServerSideRequestThrottlingException:
+                self.log.info("Too frequent requests, slow down man!")
+                for i in range(5, 1, -1):
+                    self.log.info("Wait %s more seconds befrore continuing", str(i))
+                    sleep(1)
+                self.main_loop()
 
     @staticmethod
     def from_iterable_to_chain(f, items):
