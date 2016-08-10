@@ -93,16 +93,22 @@ def main():
 
     pokemon_names = json.load(open("name_id.json"))
 
-    # this creates th dump file is not already present
-    if not os.path.isfile("accounts/%s.json" % config.username):
-        with open("accounts/%s.json" % config.username, "w") as f:
+    # this creates the dump files is not already present
+    if not os.path.exists("accounts/%s/" % config.username):
+        os.mkdir("accounts/%s/" % config.username)
+    if not os.path.isfile("accounts/%s/Inventory.json" % config.username):
+        with open("accounts/%s/Inventory.json" % config.username, "w") as f:
+                f.write(json.dumps({}, indent=2))
+                f.close()
+    if not os.path.isfile("accounts/%s/Map.json" % config.username):
+        with open("accounts/%s/Map.json" % config.username, "w") as f:
                 f.write(json.dumps({}, indent=2))
                 f.close()
 
     # crates the bot object
     bot = pogobot.PoGObot(config.__dict__, pokemon_names, position)
 
-    # thread.start_new_thread(web.start_server, (bot, config.WEB_PORT)) uncomment to add web visualization
+    thread.start_new_thread(web.start_server, (bot, config.WEB_PORT))
 
     # login attempt, the starts the main boot loop
     if not bot.login(config.auth_service, config.username, config.password, config.cached):

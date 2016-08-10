@@ -170,11 +170,11 @@ class PoGObot:
         )
 
     def response_parser(self, res):
-        if os.path.isfile("accounts/%s.json" % self.config['username']):
-            with open("accounts/%s.json" % self.config['username'], "w") as file_to_write:
+        if os.path.isfile("accounts/%s/Inventory.json" % self.config['username']) and 'GET_PLAYER' in res['responses'] or 'GET_INVENTORY' in res['responses']:
+            with open("accounts/%s/Inventory.json" % self.config['username'], "w") as file_to_write:
                 file_to_write.write(json.dumps(res['responses'], indent=2))
                 file_to_write.close()
-            with open("accounts/%s.json" % self.config['username'], "r") as file_to_read:
+            with open("accounts/%s/Inventory.json" % self.config['username'], "r") as file_to_read:
                 file = file_to_read.read()
                 json_file = json.loads(file)
         if 'GET_PLAYER' in res['responses']:
@@ -193,8 +193,11 @@ class PoGObot:
             self.cleanup_inventory(res['responses']['GET_INVENTORY']['inventory_delta']['inventory_items'])
             # new inventory data has just been saved, clearing evolved pokemons list
             self.evolved_pokemon_ids = []
-        if 'GET_MAPS_OBJECTS' in res['responses']:
-            pass
+        if 'GET_MAP_OBJECTS' in res['responses']:
+            if os.path.isfile("accounts/%s/Map.json" % self.config['username']):
+                with open("accounts/%s/Map.json" % self.config['username'], "w") as file_to_write:
+                    file_to_write.write(json.dumps(res['responses'], indent=2))
+                    file_to_write.close()
         return
 
     def heartbeat(self):
@@ -287,8 +290,8 @@ class PoGObot:
                     request_2 = self.api.create_request()
                     request_2.disk_encounter(encounter_id=encounter_id, fort_id=fort_id, player_latitude=position[0], player_longitude=position[1])
                     resp = request_2.call()['responses']['DISK_ENCOUNTER']
-                    self.log.info('Encounter response is: %s', resp)
-                    if self.pokeballs[1] > 9 and self.pokeballs[2] > 4 and self.pokeballs[3] > 4:
+                    self.log.debug('Encounter response is: %s', resp)
+                    if sum(self.pokeballs) > 10:
                         self.disk_encounter_pokemon(fort['lure_info'])
                 return True
             else:
