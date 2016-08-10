@@ -45,6 +45,7 @@ logger = logging.getLogger(__name__)
 
 class PGoApi:
 
+
     def __init__(self, provider=None, oauth2_refresh_token=None, username=None, password=None, position_lat=None, position_lng=None, position_alt=None):
         self.set_logger()
         self.log.info('%s v%s - %s', __title__, __version__, __copyright__)
@@ -172,15 +173,15 @@ class PGoApi:
         if app_simulation:
             response = self.app_simulation_login()
         else:
-            self.log.info('Starting minimal RPC login sequence')
+            self.log.debug('Starting minimal RPC login sequence')
             response = self.get_player()
-            self.log.info('Finished minimal RPC login sequence')
+            self.log.debug('Finished minimal RPC login sequence')
 
         if not response:
-            self.log.info('Login failed!')
+            self.log.debug('Login failed!')
             return False
 
-        self.log.info('Login process completed')
+        self.log.debug('Login process completed')
 
         return True
 
@@ -287,18 +288,18 @@ class PGoApiRequest:
 
             if '_call_direct' in kwargs:
                 del kwargs['_call_direct']
-                self.log.info('Creating a new direct request...')
+                self.log.debug('Creating a new direct request...')
             elif not self._req_method_list:
-                self.log.info('Creating a new request...')
+                self.log.debug('Creating a new request...')
 
             name = func.upper()
             if kwargs:
                 self._req_method_list.append({RequestType.Value(name): kwargs})
-                self.log.info("Adding '%s' to RPC request including arguments", name)
+                self.log.debug("Adding '%s' to RPC request including arguments", name)
                 self.log.debug("Arguments of '%s': \n\r%s", name, kwargs)
             else:
                 self._req_method_list.append(RequestType.Value(name))
-                self.log.info("Adding '%s' to RPC request", name)
+                self.log.debug("Adding '%s' to RPC request", name)
 
             return self
 

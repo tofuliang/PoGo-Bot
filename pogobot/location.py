@@ -2,15 +2,13 @@
 
 # import logging
 from geopy.geocoders import GoogleV3
-from gmaps.errors import GmapException
 from gmaps.directions import Directions
 from googlemaps import Client
-from googlemaps.directions import directions
+# from googlemaps.directions import directions sould be used instead of < gmaps.directions >
 from googlemaps.elevation import elevation
 import s2sphere
 from geopy.distance import VincentyDistance, vincenty # Vincenty...
 import pyproj
-from time import time
 
 g = pyproj.Geod(ellps='WGS84')
 geolocator = GoogleV3()
@@ -25,7 +23,7 @@ def get_location(search):
 
 def get_route(start, end, gmaps_api_key):
     origin = (start[0], start[1])
-    destination = (end[0], end[1])    
+    destination = (end[0], end[1])
     directions_service = Directions(api_key=gmaps_api_key)
     d = directions_service.directions(origin, destination, mode="walking", units="metric")
     steps = d[0]['legs'][0]['steps']
@@ -44,7 +42,8 @@ def get_increments(start, end, step_size=100):
     lonlats.append((endlong, endlat))
     return [(l[1], l[0], 0) for l in lonlats]
 
-def append_altitude(lat, lon, gmaps_api_key):
+
+def append_elevation(lat, lon, gmaps_api_key):
     request_google = Client(key=str(gmaps_api_key))
     location = (lat, lon)
     response = request_google.elevation(locations=location)

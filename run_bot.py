@@ -5,7 +5,6 @@
 # If you want to make the bot as fast as possible for catching more pokemon (like you are driving a fast car--it won't look suspicious though, since it only goes on paths), make stepsize 200; for more info see that method in pgoapi.py under pgoapi...but still I wouldn't recommend making stepsize that high
 
 import os
-import sys
 # import re
 import json
 # import struct
@@ -16,6 +15,7 @@ import thread
 from time import sleep
 
 # add directory of this file to PATH, so that the package will be found
+# import sys
 # sys.path.append(os.path.dirname(os.path.realpath(__file__)))
 
 # from pgoapi import PGoApi
@@ -98,7 +98,7 @@ def main():
         with open("accounts/%s.json" % config.username, "w") as f:
                 f.write(json.dumps({}, indent=2))
                 f.close()
-    
+
     # crates the bot object
     bot = pogobot.PoGObot(config.__dict__, pokemon_names, position)
 

@@ -15,13 +15,16 @@ import pickle
 import random
 import json
 import xml.etree.ElementTree as ETXML
-from pogobot.location import distance_in_meters, get_increments, get_neighbors, get_route, filtered_forts, append_altitude
+from pogobot.location import distance_in_meters, get_increments, get_neighbors, get_route, filtered_forts, append_elevation
 # import pgoapi.protos.POGOProtos.Enums_pb2 as RpcEnum
 from pogobot.poke_utils import pokemon_iv_percentage, get_inventory_data, get_pokemon_num, get_incubators_stat, incubators_stat_str, \
     get_eggs_stat
 from time import sleep
 from collections import defaultdict
+
+import sys
 import os.path
+import platform
 
 from pgoapi import PGoApi
 from pgoapi import utilities as util
@@ -174,7 +177,7 @@ class PoGObot:
                 file = file_to_read.read()
                 json_file = json.loads(file)
         if 'GET_PLAYER' in res['responses']:
-            player_data = res['responses'].get('GET_PLAYER', {}).get('player_data', {})            
+            player_data = res['responses'].get('GET_PLAYER', {}).get('player_data', {})
             inventory_items = json_file.get('GET_INVENTORY', {}).get('inventory_delta', {}).get('inventory_items', [])
             inventory_items_dict_list = map(lambda x: x.get('inventory_item_data', {}), inventory_items)
             player_stats = filter(lambda x: 'player_stats' in x, inventory_items_dict_list)[0].get('player_stats', {})
@@ -211,7 +214,7 @@ class PoGObot:
         steps = get_route(self._posf, loc, self.GMAPS_KEY)
         for step in steps:
             for next_point in enumerate(get_increments(self._posf, step, self.config.get("STEP_SIZE", 100))):
-                final_point = append_altitude(next_point[1][0], next_point[1][1], self.GMAPS_KEY)
+                final_point = append_elevation(next_point[1][0], next_point[1][1], self.GMAPS_KEY)
                 self.api.set_position(*final_point)
                 # make sure we have atleast 1 ball
                 if sum(self.pokeballs) > 0 and self._walk_count % 3:
@@ -220,7 +223,6 @@ class PoGObot:
                             sleep(1 * random.random() + 1) # If you want to make it faster, delete this line... would not recommend though
 
         return
-
 
     # this is in charge of spinning a pokestop
     def spin_near_fort(self):
@@ -262,18 +264,22 @@ class PoGObot:
                 fort = destinations[destination_num]
                 self.log.info("Walking to fort at %s,%s", fort['latitude'], fort['longitude'])
                 self.walk_to((fort['latitude'], fort['longitude']))
-                self.log.info("Walked to fort at %s,%s", fort['latitude'], fort['longitude'])
+                self.log.info("Arrived at fort at %s,%s", fort['latitude'], fort['longitude'])
+                if self.SLOW_BUT_STEALTH:
+                    sleep(2 * random.random() + 1)
                 # when arrived, get the new position and spin the pokestop
                 self._posf = self.api.get_position()
                 position = self._posf
                 request = self.api.create_request()
                 request.fort_search(fort_id=fort['id'], fort_latitude=fort['latitude'], fort_longitude=fort['longitude'], player_latitude=position[0], player_longitude=position[1])
                 res = request.call()['responses']['FORT_SEARCH']
-                self.log.info("Fort spinned: %s", res)
+                if 'items_awarded' in res:
+                    self.log.info("Fort spinned!")
+                else:
+                    self.log.info("Fort not spinned succesfully!")
                 if 'lure_info' in fort:
                     encounter_id = fort['lure_info']['encounter_id']
                     fort_id = fort['lure_info']['fort_id']
-                    position = self._posf
                     request_2 = self.api.create_request()
                     request_2.disk_encounter(encounter_id=encounter_id, fort_id=fort_id, player_latitude=position[0], player_longitude=position[1])
                     resp = request_2.call()['responses']['DISK_ENCOUNTER']
@@ -306,7 +312,7 @@ class PoGObot:
     def nearby_map_objects(self):
         self._posf = self.api.get_position()
         cell_ids = util.get_cell_ids(lat=self._posf[0], long=self._posf[1], radius=500)
-        timestamps = [0,] * len(cell_ids)
+        timestamps = [0, ] * len(cell_ids)
         response = self.api.get_map_objects(latitude=self._posf[0], longitude=self._posf[1], since_timestamp_ms=timestamps, cell_id=cell_ids)
         return response
 
@@ -328,7 +334,7 @@ class PoGObot:
     def cleanup_inventory(self, inventory_items=None):
         if not inventory_items:
             inventory_items = self.api.get_inventory().call()['responses']['GET_INVENTORY']['inventory_delta']['inventory_items']
-            sleep(3 * random.random() + 5)
+        sleep(3 * random.random() + 5)
         all_actual_items = [xiq['inventory_item_data']["item"] for xiq in inventory_items if "item" in xiq['inventory_item_data']]
         all_actual_item_str = "\n\nList of items:\n\n"
         all_actual_item_count = 0
@@ -367,7 +373,7 @@ class PoGObot:
                                 self.api.evolve_pokemon(pokemon_id=pokemon['id'])  # quick press ctrl + c to stop the evolution
                                 self.evolved_pokemon_ids.append(pokemon['pokemon_id'])
                                 if self.SLOW_BUT_STEALTH:
-                                    sleep(3 * random.random() + 5)
+                                    sleep(3 * random.random() + 28)
         excess_pokemons = defaultdict(list)
         for pokemons in caught_pokemon.values():
             pokemons = sorted(pokemons, lambda x, y: cmp(x['cp'], y['cp']), reverse=True)
@@ -386,6 +392,7 @@ class PoGObot:
                     self.log.debug("Releasing pokemon: %s", pokemon)
                     self.log.info("Releasing pokemon: %s IV: %s CP: %s", self.pokemon_names[str(pokemon['pokemon_id'])], pokemon_iv_percentage(pokemon), pokemon['cp'])
                     self.api.release_pokemon(pokemon_id=pokemon["id"])
+                    sleep(3 * random.random() + 5)
             if self.RELEASE_DUPLICATES:
                 if len(pokemons) > MIN_SIMILAR_POKEMON:
                     # chose which pokemon should be released: first check IV, second CP
@@ -400,6 +407,7 @@ class PoGObot:
                                     self.log.info("Releasing pokemon: %s IV: %s CP: %s", self.pokemon_names[str(top_CP_pokemon['pokemon_id'])], pokemon_iv_percentage(top_CP_pokemon), top_CP_pokemon['cp'])
                                     self.api.release_pokemon(pokemon_id=top_CP_pokemon["id"])
                                     top_CP_pokemon = pokemon
+                                    sleep(3 * random.random() + 5)
                         elif top_CP_pokemon['cp'] * self.DUPLICATE_CP_FORGIVENESS > pokemon['cp']:
                                 atgym = 'deployed_fort_id' in pokemon
                                 if atgym:
@@ -408,6 +416,7 @@ class PoGObot:
                                     self.log.debug("Releasing pokemon: %s", pokemon)
                                     self.log.info("Releasing pokemon: %s IV: %s CP: %s", self.pokemon_names[str(pokemon['pokemon_id'])], pokemon_iv_percentage(pokemon), pokemon['cp'])
                                     self.api.release_pokemon(pokemon_id=pokemon["id"])
+                                    sleep(3 * random.random() + 5)
         return
 
     def disk_encounter_pokemon(self, lureinfo):
@@ -416,7 +425,7 @@ class PoGObot:
             fort_id = lureinfo['fort_id']
             position = self._posf
             resp = self.api.disk_encounter(encounter_id=encounter_id, fort_id=fort_id, player_latitude=position[0], player_longitude=position[1]).call()['responses']['DISK_ENCOUNTER']
-            sleep(2*random.random() + 1)
+            sleep(2 * random.random() + 1)
             if resp['result'] == 1:
                 capture_status = -1
                 self._pokeball_type = 1
@@ -516,9 +525,10 @@ class PoGObot:
         self.api.set_authentication(provider=provider, username=username, password=password)
 
         # provide the path for your encrypt dll
-        self.api.activate_signature("pgoapi/encrypt.dll")
+        encryption_path = self.get_encryption_lib_path()
+        self.api.activate_signature(encryption_path)
 
-        # try to log in like real app 
+        # try to log in like real app
         response = self.api.app_simulation_login()
 
         # update Inventory
@@ -527,6 +537,39 @@ class PoGObot:
         sleep(5 * random.random() + 5)
 
         return True
+
+    def get_encryption_lib_path(self):
+        lib_path = ""
+        # win32 doesn't mean necessarily 32 bits
+        if sys.platform == "win32":
+            if platform.architecture()[0] == '64bit':
+                lib_path = os.path.join(os.path.dirname(__file__), "../pgoapi/libs/libencrypt-windows-64.dll")
+            else:
+                lib_path = os.path.join(os.path.dirname(__file__), "../pgoapi/libs/libencrypt-windows-32.dll")
+
+        elif sys.platform == "darwin":
+            lib_path = os.path.join(os.path.dirname(__file__), "../pgoapi/libs/libencrypt-osx-64.so")
+
+        elif os.uname()[4].startswith("arm") and platform.architecture()[0] == '32bit':
+            lib_path = os.path.join(os.path.dirname(__file__), "../pgoapi/libs/libencrypt-linux-arm-32.so")
+
+        elif sys.platform.startswith('linux'):
+            if platform.architecture()[0] == '64bit':
+                lib_path = os.path.join(os.path.dirname(__file__), "../pgoapi/libs/libencrypt-linux-x86-64.so")
+            else:
+                lib_path = os.path.join(os.path.dirname(__file__), "../pgoapi/libs/libencrypt-linux-x86-32.so")
+
+        else:
+            err = "Unexpected/unsupported platform '{}'".format(sys.platform)
+            self.log.info(err)
+            raise Exception(err)
+
+        if not os.path.isfile(lib_path):
+            err = "Could not find {} encryption library {}".format(sys.platform, lib_path)
+            self.log.info(err)
+            raise Exception(err)
+
+        return lib_path
 
     def set_GPX(self):
         if len(self.GPX_lat) == 0 and len(self.GPX_lon) == 0:
@@ -571,7 +614,7 @@ class PoGObot:
         request = self.api.create_request()
         request.use_item_egg_incubator(item_id=incubator_id, pokemon_id=egg_id)
         response = request.call()
-        sleep(random.random() +1)
+        sleep(random.random() + 1)
         result = response.get('responses', {}).get('USE_ITEM_EGG_INCUBATOR', {})
         if len(result) == 0:
             return False
