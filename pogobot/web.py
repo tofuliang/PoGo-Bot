@@ -41,8 +41,8 @@ def send_js(path):
 
 @app.route('/api/player')
 def api_player():
-    if os.path.isfile("accounts/%s/Inventory.json" % pogo_server.bot.config['username']):
-        with open("accounts/%s/Inventory.json" % pogo_server.bot.config['username'], "r") as file_to_read:
+    if os.path.isfile("accounts/%s/Player.json" % pogo_server.bot.config['username']):
+        with open("accounts/%s/Player.json" % pogo_server.bot.config['username'], "r") as file_to_read:
             file = file_to_read.read()
             res = json.loads(file)
             data = res['GET_PLAYER']['player_data']
