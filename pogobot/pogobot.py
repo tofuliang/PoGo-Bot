@@ -271,7 +271,7 @@ class PoGObot:
                 # select a random pokestop and go there
                 destination_num = random.randint(0, min(7, len(destinations) - 1))
                 fort = destinations[destination_num]
-                if self.walk_count == 1:
+                if self._walk_count == 1:
                     self.first_fort = fort
                 if self._start_pos and self._walk_count % self.config.get("RETURN_START_INTERVAL") == 0:
                     fort = self.first_fort
