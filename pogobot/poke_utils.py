@@ -84,5 +84,5 @@ def incubators_stat_str(res):
         incubators_stat += "\n" + (os.linesep.join(map(lambda x: "Incubator id: {0}, uses_remaining: {1} time(s)".format(
             x['id'], x.get('uses_remaining', 'inf')), empty_incubator_list)))
     else:
-        incubators_stat += '\nAll incubators are using'
+        incubators_stat += '\nYou are already using all incubators '
     return incubators_stat

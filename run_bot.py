@@ -13,16 +13,19 @@ import logging
 import argparse
 import thread
 from time import sleep
-from pgoapi import PGoApi
-# from pgoapi.utilities import f2i, h2f
-# from pgoapi.location import get_neighbors
+
+# add directory of this file to PATH, so that the package will be found
+# import sys
+# sys.path.append(os.path.dirname(os.path.realpath(__file__)))
+
+# from pgoapi import PGoApi
+from pogobot import pogobot, web
+# from utilities import f2i, h2f
+# from location import get_neighbors
 
 # from google.protobuf.internal import encoder
 from geopy.geocoders import GoogleV3
-from web import start_server
 # from s2sphere import CellId, LatLng
-
-import pgoapi.globalvars # import global variables module currently used for tracking the used Gmaps API keys to prevent extra requests to bad keys # noqa
 
 log = logging.getLogger(__name__)
 
@@ -70,7 +73,8 @@ def init_config():
 def main():
     logging.basicConfig(level=logging.WARNING, format='%(asctime)s [%(module)10s] [%(levelname)5s] %(message)s')
     logging.getLogger("requests").setLevel(logging.WARNING)
-    logging.getLogger("pgoapi").setLevel(logging.INFO)  # FIXME we need to work on what should be show normally and what should be shown durin debug
+    logging.getLogger("pogobot").setLevel(logging.INFO)
+    logging.getLogger("pgoapi").setLevel(logging.INFO)
     logging.getLogger("rpc_api").setLevel(logging.INFO)
 
     config = init_config()
@@ -79,7 +83,8 @@ def main():
 
     if config.verbose:
         logging.getLogger("requests").setLevel(logging.DEBUG)
-        logging.getLogger("pgoapi").setLevel(logging.DEBUG)  # FIXME we need to work on what should be show normally and what should be shown durin debug
+        logging.getLogger("pogobot").setLevel(logging.DEBUG)
+        logging.getLogger("pgoapi").setLevel(logging.DEBUG)
         logging.getLogger("rpc_api").setLevel(logging.DEBUG)
 
     position = get_pos_by_name(config.location)
@@ -88,15 +93,29 @@ def main():
 
     pokemon_names = json.load(open("name_id.json"))
 
-    api = PGoApi(config.__dict__, pokemon_names, position)
+    # this creates the dump files is not already present
+    if not os.path.exists("accounts/%s/" % config.username):
+        os.mkdir("accounts/%s/" % config.username)
+    if not os.path.isfile("accounts/%s/Inventory.json" % config.username):
+        with open("accounts/%s/Inventory.json" % config.username, "w") as f:
+                f.write(json.dumps({}, indent=2))
+                f.close()
+    if not os.path.isfile("accounts/%s/Map.json" % config.username):
+        with open("accounts/%s/Map.json" % config.username, "w") as f:
+                f.write(json.dumps({}, indent=2))
+                f.close()
 
-    thread.start_new_thread(start_server, (api, config.WEB_PORT))
+    # crates the bot object
+    bot = pogobot.PoGObot(config.__dict__, pokemon_names, position)
 
-    if not api.login(config.auth_service, config.username, config.password, config.cached):
+    thread.start_new_thread(web.start_server, (bot, config.WEB_PORT))
+
+    # login attempt, the starts the main boot loop
+    if not bot.login(config.auth_service, config.username, config.password, config.cached):
         return
     while True:
         try:
-            api.main_loop()
+            bot.main_loop()
         except Exception as e:
             log.exception('Main loop has an ERROR, restarting %s', e)
             sleep(30)
