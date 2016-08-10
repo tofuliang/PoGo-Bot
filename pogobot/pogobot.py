@@ -147,6 +147,7 @@ class PoGObot:
         self._start_pos = start_pos
         self._posf = start_pos
         self._walk_count = 1
+        self.first_fort = {}
         self.config = config
         self.evolved_pokemon_ids = []
         self.GPX_lat = []
@@ -170,7 +171,7 @@ class PoGObot:
         )
 
     def response_parser(self, res):
-        if os.path.isfile("accounts/%s/Inventory.json" % self.config['username']) and 'GET_PLAYER' in res['responses'] or 'GET_INVENTORY' in res['responses']:
+        if os.path.isfile("accounts/%s/Inventory.json" % self.config['username']) and 'GET_INVENTORY' in res['responses']:
             with open("accounts/%s/Inventory.json" % self.config['username'], "w") as file_to_write:
                 file_to_write.write(json.dumps(res['responses'], indent=2))
                 file_to_write.close()
@@ -178,6 +179,10 @@ class PoGObot:
                 file = file_to_read.read()
                 json_file = json.loads(file)
         if 'GET_PLAYER' in res['responses']:
+            if os.path.isfile("accounts/%s/Player.json" % self.config['username']):
+                with open("accounts/%s/Player.json" % self.config['username'], "w") as file_to_write:
+                    file_to_write.write(json.dumps(res['responses'], indent=2))
+                    file_to_write.close()
             player_data = res['responses'].get('GET_PLAYER', {}).get('player_data', {})
             inventory_items = json_file.get('GET_INVENTORY', {}).get('inventory_delta', {}).get('inventory_items', [])
             inventory_items_dict_list = map(lambda x: x.get('inventory_item_data', {}), inventory_items)
@@ -217,11 +222,11 @@ class PoGObot:
         self._walk_count += 1
         steps = get_route(self._posf, loc, self.GMAPS_KEY)
         for step in steps:
-            for next_point in enumerate(get_increments(self._posf, step, self.config.get("STEP_SIZE", 100))):
+            for next_point in enumerate(get_increments(self._posf, step, self.config.get("STEP_SIZE", 70))):
                 final_point = append_elevation(next_point[1][0], next_point[1][1], self.GMAPS_KEY)
                 self.api.set_position(*final_point)
                 # make sure we have atleast 1 ball
-                if sum(self.pokeballs) > 0 and self._walk_count % 3:
+                if sum(self.pokeballs) > 0 and self._walk_count % 5:
                     while self.catch_near_pokemon():
                         if self.SLOW_BUT_STEALTH:
                             sleep(1 * random.random() + 1) # If you want to make it faster, delete this line... would not recommend though
@@ -264,8 +269,12 @@ class PoGObot:
                 destinations = filtered_forts(self._posf, forts)
             if len(destinations) > 0:
                 # select a random pokestop and go there
-                destination_num = random.randint(0, min(5, len(destinations) - 1))
+                destination_num = random.randint(0, min(7, len(destinations) - 1))
                 fort = destinations[destination_num]
+                if self._walk_count == 1:
+                    self.first_fort = fort
+                if self._start_pos and self._walk_count % self.config.get("RETURN_START_INTERVAL") == 0:
+                    fort = self.first_fort
                 self.log.info("Walking to fort at %s,%s", fort['latitude'], fort['longitude'])
                 self.walk_to((fort['latitude'], fort['longitude']))
                 self.log.info("Arrived at fort at %s,%s", fort['latitude'], fort['longitude'])
@@ -318,7 +327,7 @@ class PoGObot:
 
     def nearby_map_objects(self):
         self._posf = self.api.get_position()
-        cell_ids = util.get_cell_ids(lat=self._posf[0], long=self._posf[1], radius=500)
+        cell_ids = util.get_cell_ids(lat=self._posf[0], long=self._posf[1], radius=700)
         timestamps = [0, ] * len(cell_ids)
         response = self.api.get_map_objects(latitude=self._posf[0], longitude=self._posf[1], since_timestamp_ms=timestamps, cell_id=cell_ids)
         return response
